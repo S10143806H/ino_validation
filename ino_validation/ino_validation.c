@@ -1,12 +1,22 @@
 ﻿#include <io.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include "dirent.h"	// https://codeyarns.com/tech/2014-06-06-how-to-use-dirent-h-with-visual-studio.html#gsc.tab=0
 
+
+#include "cJSON.h"
+
 #define PRINT_DEBUG 1
+#define MAX_PATH_LENGTH 1024
+
+
+
+
+
 
 /* Declear global vairables */
 const char* keywordNN = "modelSelect";
@@ -22,16 +32,24 @@ const char* keyword_bypassVOE1 = " .configVideoChannel";
 const char* keyword_bypassVOE2 = " configVideoChannel";
 
 const char* filename_txt = "ino_validation.txt";
-
+//usrmodel_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 /* Declear function headers */
+int dirExists(const char* path);
 int isDirExists(const char* path);
 void copyFile(const char* sourcePath, const char* destinationPath);
 void copyDirectory(const char* sourcePath, const char* destinationPath);
 void deleteDirectory(const char* path);
 /* Functions below are for txt file manipulation */
 int endsWith(const char* str, const char* suffix);
+void resetTXT(void);
 void writeTXT(const char* example_path);
+void updateTXT(const char* input);
+const char* input2model(const char* input);
+const char* input2header(const char* input);
+const char* input2filename(const char* dest_path, const char* input);
+
+
 
 
 int main(int argc, char* argv[]) {
@@ -84,8 +102,21 @@ int main(int argc, char* argv[]) {
 	printf("arduino15_path   = %s\n", arduino15_path);
 	//printf("sdk_version   = %s\n", arduino15_path);
 #endif
-	exit(1);
 
+	// SECTION FOR FUNCTION TEST
+	const char* input = "CUSTOMIZED_MOBILEFACENET";
+	const char* model = input2model(input);
+	printf("Model: %s\n", model);
+
+	updateTXT("Hello, world!");
+
+
+
+
+
+
+	// END OF SECTION FOR FUNCTION TEST
+	exit(1);
 	while (1);
 
 #if PRINT_DEBUG
@@ -242,6 +273,149 @@ int endsWith(const char* str, const char* suffix) {
 	}
 	return strncmp(str + str_len - suffix_len, suffix, suffix_len) == 0;
 }
+
+const char* input2model(const char* input) {
+	const char* model_mapping[][2] = {
+		{"CUSTOMIZED_YOLOV3TINY",    "yolov3_tiny"},
+		{"CUSTOMIZED_YOLOV4TINY",    "yolov4_tiny"},
+		{"CUSTOMIZED_YOLOV7TINY",    "yolov7_tiny"},
+		{"CUSTOMIZED_MOBILEFACENET", "mobilefacenet_i16"},
+		{"CUSTOMIZED_SCRFD",         "scrfd640"},
+		{"DEFAULT_YOLOV3TINY",       "yolov3_tiny"},
+		{"DEFAULT_YOLOV4TINY",       "yolov4_tiny"},
+		{"DEFAULT_YOLOV7TINY",       "yolov7_tiny"},
+		{"DEFAULT_MOBILEFACENET",    "mobilefacenet_i8"},
+		{"DEFAULT_SCRFD",            "scrfd320p"}
+	};
+
+	int mapping_size = sizeof(model_mapping) / sizeof(model_mapping[0]);
+
+	for (int i = 0; i < mapping_size; i++) {
+		if (strcmp(input, model_mapping[i][0]) == 0) {
+			return model_mapping[i][1];
+		}
+	}
+
+	return NULL;
+}
+
+const char* input2header(const char* input) {
+	const char* header = NULL;
+
+	if (strcmp(input, "yolov3_tiny") == 0 ||
+		strcmp(input, "yolov4_tiny") == 0 ||
+		strcmp(input, "yolov7_tiny") == 0) {
+		header = "NNObjectDetection.h";
+	}
+	else if (strcmp(input, "mobilefacenet_i16") == 0 ||
+		strcmp(input, "scrfd640") == 0 ||
+		strcmp(input, "mobilefacenet_i8") == 0 ||
+		strcmp(input, "scrfd320p") == 0) {
+		header = "NNFaceDetectionRecognition.h";
+	}
+	else if (strcmp(input, "None") == 0) {
+		header = "NA";
+	}
+
+	return header;
+}
+
+const char* input2filename(const char* dest_path, const char* input) {
+	const char* value_file = NULL;
+
+	if (dirExists(dest_path)) {
+		DIR* dir = opendir(dest_path);
+		struct dirent* entry;
+
+		while ((entry = readdir(dir)) != NULL) {
+			if (endsWith(entry->d_name, ".json")) {
+				char file_json_path[1024];
+				sprintf(file_json_path, "%s/%s", dest_path, entry->d_name);
+
+				FILE* file = fopen(file_json_path, "r");
+				if (file) {
+					char line[1024];
+					while (fgets(line, sizeof(line), file)) {
+						// Assuming the JSON structure is known
+						if (strstr(line, input) != NULL && strstr(line, "\"file\"") != NULL) {
+							char* start = strchr(line, '\"') + 1;
+							char* end = strrchr(line, '\"');
+							size_t length = end - start;
+							//value_file = malloc(length + 1);
+							//strncpy(value_file, start, length);
+							//value_file[length] = '\0';
+							break;
+						}
+					}
+
+					fclose(file);
+				}
+			}
+		}
+
+		closedir(dir);
+	}
+
+	return value_file;
+}
+
+int dirExists(const char* path) {
+	DIR* dir = opendir(path);
+	if (dir) {
+		closedir(dir);
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+void resetTXT(void) {
+	const char* filepath_txt = "path/to/your/file.txt";
+	const char* directory = "path/to/your/directory";
+
+	// 创建目录（如果不存在）
+	struct stat st;
+	if (stat(directory, &st) == -1) {
+		mkdir(directory, 0700);
+	}
+
+	// 打开文件并清空内容
+	FILE* file = fopen(filepath_txt, "w");
+	if (file != NULL) {
+		fclose(file);
+	}
+
+	printf("[INFO] %s has been reset\n", filepath_txt);
+}
+
+void updateTXT(const char* input) {
+	const char* filepath_txt = "path/to/your/file.txt"; // 修改为你的文件路径
+
+	char* directory = strdup(filepath_txt);
+	/*	char* dir_path = dirname(directory);
+
+	// 创建目录（如果不存在）
+#ifdef _WIN32
+	_mkdir(dir_path);
+#else
+	mkdir(dir_path, 0777);
+#endif
+
+	FILE* file = fopen(filepath_txt, "a");
+	if (file == NULL) {
+		fprintf(stderr, "Failed to open file.\n");
+		free(directory);
+		return;
+	}
+
+	fprintf(file, "%s\n", input);
+
+	fclose(file);*/
+	free(directory);
+}
+
+
 
 void writeTXT(const char* example_path) {
 

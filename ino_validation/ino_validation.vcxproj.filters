@@ -23,5 +23,8 @@
     <ClInclude Include="dirent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="cJSON.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
