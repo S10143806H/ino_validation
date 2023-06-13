@@ -6,17 +6,10 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include "dirent.h"	// https://codeyarns.com/tech/2014-06-06-how-to-use-dirent-h-with-visual-studio.html#gsc.tab=0
-
-
 #include "cJSON.h"
 
 #define PRINT_DEBUG 1
 #define MAX_PATH_LENGTH 1024
-
-
-
-
-
 
 /* Declear global vairables */
 const char* keywordNN = "modelSelect";
@@ -35,7 +28,10 @@ const char* filename_txt = "ino_validation.txt";
 //usrmodel_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 /* Declear function headers */
-int dirExists(const char* path);
+int dirExists(const char* directory_path);
+const char* dirName(const char* directory_path);
+
+
 int isDirExists(const char* path);
 void copyFile(const char* sourcePath, const char* destinationPath);
 void copyDirectory(const char* sourcePath, const char* destinationPath);
@@ -67,7 +63,9 @@ int main(int argc, char* argv[]) {
 	/* Declear common file paths */
 	char root_path[512];
 	char arduino15_path[512];
+	char ambpro2_path[512];
 	char* arduino15_add = "\\AppData\\Local\\Arduino15";
+	char* ambpro2_add = "\\packages\\realtek\\hardware\\AmebaPro2";
 
 	DIR* dir;
 	struct dirent* ent;
@@ -91,16 +89,17 @@ int main(int argc, char* argv[]) {
 	strcpy(root_path, getenv("USERPROFILE"));
 	strcpy(arduino15_path, getenv("USERPROFILE"));
 	strcat(arduino15_path, arduino15_add);
+	strcpy(ambpro2_path, arduino15_path);
+	strcat(ambpro2_path, ambpro2_add);
 
-
-	//strcat(str, bar);
 #if PRINT_DEBUG
-	printf("USERPROFILE = %s\n", getenv("USERPROFILE"));
-	printf("HOMEDRIVE   = %s\n", getenv("HOMEDRIVE"));
-	printf("HOMEPATH    = %s\n", getenv("HOMEPATH"));
-	printf("root_path   = %s\n", root_path);
+	printf("USERPROFILE      = %s\n", getenv("USERPROFILE"));
+	printf("HOMEDRIVE        = %s\n", getenv("HOMEDRIVE"));
+	printf("HOMEPATH         = %s\n", getenv("HOMEPATH"));
+	printf("root_path        = %s\n", root_path);
 	printf("arduino15_path   = %s\n", arduino15_path);
-	//printf("sdk_version   = %s\n", arduino15_path);
+	printf("ambpro2_path     = %s\n", ambpro2_path);
+	printf("ambpro2_sdkver   = %s\n", dirName(ambpro2_path));
 #endif
 
 	// SECTION FOR FUNCTION TEST
@@ -109,6 +108,13 @@ int main(int argc, char* argv[]) {
 	printf("Model: %s\n", model);
 
 	updateTXT("Hello, world!");
+
+
+
+
+
+
+
 
 
 
@@ -143,6 +149,8 @@ int isDirExists(const char* path) {
 	DIR* dir;
 	struct dirent* ent;
 	int count = 0;
+
+	// check weather dir is valid
 	if ((dir = opendir(path)) != NULL) {
 		/* print all the files and directories within directory */
 		while ((ent = readdir(dir)) != NULL) {
@@ -167,7 +175,7 @@ int isDirExists(const char* path) {
 			return 0;
 		}
 		closedir(dir);
-		return 1;
+		return count;
 	}
 	else if (ENOENT == errno) {
 #if PRINT_DEBUG
@@ -359,15 +367,56 @@ const char* input2filename(const char* dest_path, const char* input) {
 	return value_file;
 }
 
-int dirExists(const char* path) {
-	DIR* dir = opendir(path);
-	if (dir) {
-		closedir(dir);
+/*
+* Function checks wehtther the directory exisits 
+* Returns 1 if dir is valid
+* Returns 0 if dir is invalid
+*/
+int dirExists(const char* directory_path) {
+	DIR* directory = opendir(directory_path);
+	// check weather dir is valid
+	if (directory) {
+		closedir(directory);
 		return 1;
-	}
-	else {
+	} 	else {
+		printf("[%s][Error] Failed to open directory.\n", __func__);
 		return 0;
 	}
+}
+
+/*
+* Function check folder names under current directory 
+* Returns NA
+*/
+const char* dirName(const char* directory_path) {
+	int sdk_counter = 0;
+	struct dirent* entry;
+	DIR* directory = opendir(directory_path);
+	const char* sdk_name = "";
+	// check dir validation
+	if (directory) {
+		while ((entry = readdir(directory)) != NULL) {
+			if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+				continue;
+			}
+			else {
+				sdk_counter++;	
+				sdk_name = entry->d_name;
+			}
+		}
+		// non singular SDK validation
+		if (sdk_counter > 1) {
+			printf("[%s][Error] Current dirctory contains more than 1 SDK!!! \n", __func__);
+			exit(1);
+		}
+		else {
+			return sdk_name;			
+		}
+	}
+	else {
+		printf("[%s][Error] Failed to open directory.\n", __func__);
+	}
+	closedir(directory);
 }
 
 void resetTXT(void) {
@@ -392,7 +441,7 @@ void resetTXT(void) {
 void updateTXT(const char* input) {
 	const char* filepath_txt = "path/to/your/file.txt"; // 修改为你的文件路径
 
-	char* directory = strdup(filepath_txt);
+	//char* directory = strdup(filepath_txt);
 	/*	char* dir_path = dirname(directory);
 
 	// 创建目录（如果不存在）
@@ -412,7 +461,7 @@ void updateTXT(const char* input) {
 	fprintf(file, "%s\n", input);
 
 	fclose(file);*/
-	free(directory);
+	//free(directory);
 }
 
 
