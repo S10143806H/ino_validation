@@ -32,7 +32,7 @@ int isDirExists(const char* path);
 void copyFile(const char* sourcePath, const char* destinationPath);
 void copyDirectory(const char* sourcePath, const char* destinationPath);
 void deleteDirectory(const char* path);
-void validateINO(const char* directory_path);
+const char* validateINO(const char* directory_path);
 
 /* Functions below are for txt file manipulation */
 int endsWith(const char* str, const char* suffix);
@@ -43,6 +43,9 @@ const char* input2model(const char* input);
 const char* input2header(const char* input);
 const char* input2filename(const char* dest_path, const char* input);
 cJSON* loadJSONFile(const char* directory_path);
+void removeChar(char* str, char c);
+const char* pathTempJSON(const char* directory_path);
+
 
 /* Declear common file paths */
 char* arduino15_add = "\\AppData\\Local\\Arduino15";
@@ -55,6 +58,9 @@ char arduino15_path[MAX_PATH_LENGTH];
 char ambpro2_path[MAX_PATH_LENGTH];
 char model_path[MAX_PATH_LENGTH];
 char txtfile_path[MAX_PATH_LENGTH];
+
+const char* example_path;
+const char* path_build_options_json;
 
 
 int main(int argc, char* argv[]) {
@@ -97,8 +103,15 @@ int main(int argc, char* argv[]) {
 #endif
 
 	resetTXT(txtfile_path);
+	// generate path
+	path_build_options_json = pathTempJSON(build_path);
+	printf("[%s][INFO] %s\n", __func__, path_build_options_json);
+
+	example_path = validateINO(build_path);
+
 	// SECTION FOR FUNCTION TEST
-	validateINO(build_path);
+	//writeTXT(example_path);
+
 	exit(1);
 	while (1);
 
@@ -423,8 +436,9 @@ void resetTXT(const char* directory_path) {
 }
 
 void updateTXT(const char* input) {
-	const char* filepath_txt = "path/to/your/file.txt"; // 修改为你的文件路径
-
+	const char* filepath_txt=""; // 修改为你的文件路径
+	//strcpy(filepath_txt, input);
+	//printf("%s\n", input);
 	//char* directory = strdup(filepath_txt);
 	/*	char* dir_path = dirname(directory);
 
@@ -450,14 +464,22 @@ void updateTXT(const char* input) {
 
 void writeTXT(const char* example_path) {
 
+	printf("[%s][INFO] Load json file \"%s\"\n", __func__, example_path);
+	
+	
 }
 
-void validateINO(const char* directory_path) {
+const char* validateINO(const char* directory_path) {
 	DIR* dir;
 	struct dirent* ent;
 	const char* extension = ".json";
-	const char* keyword = "build";
-	cJSON* cjosn_test = NULL;
+	const char* json_keyword = "build";
+
+	cJSON* data = loadJSONFile(path_build_options_json);
+	cJSON* example_path = cJSON_GetObjectItem(data, "sketchLocation");
+
+	printf("[%s][INFO] example_path %s \n", __func__, example_path->valuestring);
+
 
 	// check weather dir is valid
 	if ((dir = opendir(directory_path)) != NULL) {
@@ -469,8 +491,11 @@ void validateINO(const char* directory_path) {
 				//printf("[%s] File:%s\n", __func__, ent->d_name);
 				size_t filesize = strlen(ent->d_name);
 				size_t extensionsize = strlen(extension);
-				const char* jsonfilename = strstr(ent->d_name, keyword);
+				const char* jsonfilename = strstr(ent->d_name, json_keyword);
 				const char* json_data = NULL;
+				const char* keyword = "Arduino15";
+				const char* keyword2 = ".ino";
+				const char* keyword3 = "Arduino15";
 				long length;
 
 				if (filesize >= extensionsize && strcmp(ent->d_name + filesize - extensionsize, extension)== 0) {
@@ -481,19 +506,38 @@ void validateINO(const char* directory_path) {
 					}
 					// Open the JSON file and retrive the data 
 					cJSON* data = loadJSONFile(directory_path);
+
 					// Access and process the parsed JSON data
 					// Arduino IDE1.0 
 					cJSON* example_path = cJSON_GetObjectItem(data, "sketchLocation");
-					printf("%s\n",example_path->valuestring);
-					// Arduino IDE2.0
-					// ..... PENDING TO ADD IDE 2.0 FEATURES
-					// 
-					// 
+					
+					// Arduino IDE2.0	
+					if (strstr(example_path->valuestring, keyword) == NULL) {
+						// Extract example name from file path
+						char* example_name = strrchr(example_path->valuestring, '\\');
+						removeChar(example_name, '\\');
+
+						
+
+						if (strstr(example_path->valuestring, keyword2) == NULL && strstr(example_name, keyword2) == NULL) {
+							// rename json extracted example filename
+							strcat(example_name, keyword2);
+							printf("123\n");
+							//printf("[%s][INFO] example_path %s \n", __func__, example_path->valuestring);
+							//printf("[%s][INFO] example_name %s \n", __func__, example_name);
+							// find filepath in includes.cache
+						}
+						printf("[%s][INFO] example_path %s \n", __func__, example_path->valuestring);
+						printf("[%s][INFO] example_name %s \n", __func__, example_name);
+					}
+
+					
+
 					// Clean up cJSON object and allocated memory
 					cJSON_Delete(data);
 					free(json_data);
 
-					return 0;
+					return example_path->valuestring;
 				}
 #endif
 			}
@@ -541,4 +585,58 @@ cJSON* loadJSONFile(const char* directory_path) {
 	// Parse the JSON data
 	cJSON* data = cJSON_Parse(json_data);
 	return data;
+}
+
+
+/*
+* Return path of the JSON file under the given input directory_path
+*/
+const char* pathTempJSON(const char* directory_path) {
+	DIR* dir;
+	struct dirent* ent;
+	const char* extension = ".json";
+	const char* json_keyword = "build";
+
+
+	// check weather dir is valid
+	if ((dir = opendir(directory_path)) != NULL) {
+		/* print all the files and directories within directory */
+		while ((ent = readdir(dir)) != NULL) {
+
+			if (ent->d_type == DT_REG) {
+
+				printf("[%s] File:%s\n", __func__, ent->d_name);
+				size_t filesize = strlen(ent->d_name);
+				size_t extensionsize = strlen(extension);
+				const char* jsonfilename = strstr(ent->d_name, json_keyword);
+				const char* json_data = NULL;
+				const char* keyword = "Arduino15";
+				const char* keyword2 = ".ino";
+				long length;
+
+				if (filesize >= extensionsize && strcmp(ent->d_name + filesize - extensionsize, extension) == 0) {
+					if (strlen(jsonfilename) != 0 && strlen(jsonfilename) == strlen(ent->d_name)) {
+						strcat(directory_path, "\\");
+						strcat(directory_path, jsonfilename);
+#if PRINT_DEBUG
+						printf("[%s][INFO] Load json file \"%s\"\n", __func__, directory_path);
+#endif
+					}
+					return directory_path;
+				}
+
+			}
+		}
+	}
+}
+
+void removeChar(char* str, char c) {
+	int i, j;
+	int len = strlen(str);
+	for (i = j = 0; i < len; i++) {
+		if (str[i] != c) {
+			str[j++] = str[i];
+		}
+	}
+	str[j] = '\0';
 }
