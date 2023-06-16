@@ -12,17 +12,17 @@
 #define MAX_PATH_LENGTH 1024
 
 /* Declear global vairables */
-const char* keywordNN = "modelSelect";
-const char* keywordVOE = "configVideoChannel";
-const char* keyword_header = "#include";
-const char* keyword_customized = "CUSTOMIZED";
-const char* keyword_default = "DEFAULT";
-const char* keyword_default_backup = "Dbackup";
-const char* keyword_customized_backup = "Cbackup";
-const char* keyword_bypassNN1 = " .modelSelect";
-const char* keyword_bypassNN2 = " modelSelect";
-const char* keyword_bypassVOE1 = " .configVideoChannel";
-const char* keyword_bypassVOE2 = " configVideoChannel";
+const char* key_ambNN = "modelSelect";
+const char* key_ambVOE = "configVideoChannel";
+const char* key_amb_header = "#include";
+const char* key_amb_customized = "CUSTOMIZED";
+const char* key_amb_default = "DEFAULT";
+const char* key_amb_default_backup = "Dbackup";
+const char* key_amb_customized_backup = "Cbackup";
+const char* key_amb_bypassNN1 = " .modelSelect";
+const char* key_amb_bypassNN2 = " modelSelect";
+const char* key_amb_bypassVOE1 = " .configVideoChannel";
+const char* key_amb_bypassVOE2 = " configVideoChannel";
 const char* filename_txt = "ino_validation.txt";
 
 /* Declear function headers */
@@ -37,7 +37,7 @@ const char* validateINO(const char* directory_path);
 /* Functions below are for txt file manipulation */
 int endsWith(const char* str, const char* suffix);
 void resetTXT(const char* directory_path);
-void writeTXT(const char* example_path);
+void writeTXT(const char* path_example);
 void updateTXT(const char* input);
 const char* input2model(const char* input);
 const char* input2header(const char* input);
@@ -59,9 +59,8 @@ char ambpro2_path[MAX_PATH_LENGTH];
 char model_path[MAX_PATH_LENGTH];
 char txtfile_path[MAX_PATH_LENGTH];
 
-const char* example_path;
 const char* path_build_options_json;
-
+const char* path_example;
 
 int main(int argc, char* argv[]) {
 	// Check if the number of input arguments is correct 
@@ -105,12 +104,14 @@ int main(int argc, char* argv[]) {
 	resetTXT(txtfile_path);
 	// generate path
 	path_build_options_json = pathTempJSON(build_path);
-	printf("[%s][INFO] %s\n", __func__, path_build_options_json);
+	path_example = validateINO(build_path);
 
-	example_path = validateINO(build_path);
+	
+	printf("[%s][INFO] path_build_options_json %s\n", __func__, path_build_options_json);
+	printf("[%s][INFO] path_example %s \n", __func__, path_example);
 
 	// SECTION FOR FUNCTION TEST
-	//writeTXT(example_path);
+	//writeTXT(path_example);
 
 	exit(1);
 	while (1);
@@ -462,25 +463,41 @@ void updateTXT(const char* input) {
 	//free(directory);
 }
 
-void writeTXT(const char* example_path) {
+void writeTXT(const char* path_example) {
 
-	printf("[%s][INFO] Load json file \"%s\"\n", __func__, example_path);
+	printf("[%s][INFO] Load json file \"%s\"\n", __func__, path_example);
 	
 	
 }
 
+/*
+* Function takes build_path as input and returns example path
+*/
+
 const char* validateINO(const char* directory_path) {
 	DIR* dir;
 	struct dirent* ent;
-	const char* extension = ".json";
-	const char* json_keyword = "build";
+	const char* ext_json = ".json";
+	const char* key_json = "build";
+	const char* key_amb = "Arduino15";
+	const char* key_ino = ".ino";
 
+	// Open the JSON file and retrive the data
 	cJSON* data = loadJSONFile(path_build_options_json);
-	cJSON* example_path = cJSON_GetObjectItem(data, "sketchLocation");
+	// Arduino IDE1.0 
+	cJSON* path_example = cJSON_GetObjectItem(data, "sketchLocation");
+	path_example = path_example->valuestring;
+	// Arduino IDE2.0	
+	if (strstr(path_example, key_amb) == NULL) {
+		printf("123");
+	}
 
-	printf("[%s][INFO] example_path %s \n", __func__, example_path->valuestring);
 
 
+	return path_example;
+
+
+	// ---------------------------replace the functions below -----------------------------------------
 	// check weather dir is valid
 	if ((dir = opendir(directory_path)) != NULL) {
 		/* print all the files and directories within directory */
@@ -489,16 +506,14 @@ const char* validateINO(const char* directory_path) {
 			if (ent->d_type == DT_REG) {
 #if PRINT_DEBUG
 				//printf("[%s] File:%s\n", __func__, ent->d_name);
-				size_t filesize = strlen(ent->d_name);
-				size_t extensionsize = strlen(extension);
-				const char* jsonfilename = strstr(ent->d_name, json_keyword);
+				size_t size_file = strlen(ent->d_name);
+				size_t size_json = strlen(ext_json);
+				const char* jsonfilename = strstr(ent->d_name, key_json);
 				const char* json_data = NULL;
-				const char* keyword = "Arduino15";
-				const char* keyword2 = ".ino";
-				const char* keyword3 = "Arduino15";
-				long length;
+				const char* key_amb = "Arduino15";
+				const char* key_ino = ".ino";
 
-				if (filesize >= extensionsize && strcmp(ent->d_name + filesize - extensionsize, extension)== 0) {
+				if (size_file >= size_json && strcmp(ent->d_name + size_file - size_json, ext_json)== 0) {
 					if (strlen(jsonfilename)!=0 && strlen(jsonfilename) == strlen(ent->d_name)) {
 						strcat(directory_path, "\\");
 						strcat(directory_path, jsonfilename);
@@ -509,25 +524,25 @@ const char* validateINO(const char* directory_path) {
 
 					// Access and process the parsed JSON data
 					// Arduino IDE1.0 
-					cJSON* example_path = cJSON_GetObjectItem(data, "sketchLocation");
+					cJSON* path_example = cJSON_GetObjectItem(data, "sketchLocation");
 					
 					// Arduino IDE2.0	
-					if (strstr(example_path->valuestring, keyword) == NULL) {
+					if (strstr(path_example->valuestring, key_amb) == NULL) {
 						// Extract example name from file path
-						char* example_name = strrchr(example_path->valuestring, '\\');
+						char* example_name = strrchr(path_example->valuestring, '\\');
 						removeChar(example_name, '\\');
 
 						
 
-						if (strstr(example_path->valuestring, keyword2) == NULL && strstr(example_name, keyword2) == NULL) {
+						if (strstr(path_example->valuestring, key_ino) == NULL && strstr(example_name, key_ino) == NULL) {
 							// rename json extracted example filename
-							strcat(example_name, keyword2);
+							strcat(example_name, key_ino);
 							printf("123\n");
-							//printf("[%s][INFO] example_path %s \n", __func__, example_path->valuestring);
+							//printf("[%s][INFO] path_example %s \n", __func__, path_example->valuestring);
 							//printf("[%s][INFO] example_name %s \n", __func__, example_name);
 							// find filepath in includes.cache
 						}
-						printf("[%s][INFO] example_path %s \n", __func__, example_path->valuestring);
+						printf("[%s][INFO] path_example %s \n", __func__, path_example->valuestring);
 						printf("[%s][INFO] example_name %s \n", __func__, example_name);
 					}
 
@@ -537,7 +552,7 @@ const char* validateINO(const char* directory_path) {
 					cJSON_Delete(data);
 					free(json_data);
 
-					return example_path->valuestring;
+					return path_example->valuestring;
 				}
 #endif
 			}
@@ -594,31 +609,24 @@ cJSON* loadJSONFile(const char* directory_path) {
 const char* pathTempJSON(const char* directory_path) {
 	DIR* dir;
 	struct dirent* ent;
-	const char* extension = ".json";
-	const char* json_keyword = "build";
+	const char* ext_json = ".json";
+	const char* key_json = "build";
 
-
-	// check weather dir is valid
 	if ((dir = opendir(directory_path)) != NULL) {
 		/* print all the files and directories within directory */
 		while ((ent = readdir(dir)) != NULL) {
-
 			if (ent->d_type == DT_REG) {
-
+#if PRINT_DEBUG
 				printf("[%s] File:%s\n", __func__, ent->d_name);
-				size_t filesize = strlen(ent->d_name);
-				size_t extensionsize = strlen(extension);
-				const char* jsonfilename = strstr(ent->d_name, json_keyword);
-				const char* json_data = NULL;
-				const char* keyword = "Arduino15";
-				const char* keyword2 = ".ino";
-				long length;
+				size_t size_file = strlen(ent->d_name);
+				size_t size_json = strlen(ext_json);
+				const char* jsonfilename = strstr(ent->d_name, key_json);
 
-				if (filesize >= extensionsize && strcmp(ent->d_name + filesize - extensionsize, extension) == 0) {
+				if (size_file >= size_json && strcmp(ent->d_name + size_file - size_json, ext_json) == 0) {
 					if (strlen(jsonfilename) != 0 && strlen(jsonfilename) == strlen(ent->d_name)) {
 						strcat(directory_path, "\\");
 						strcat(directory_path, jsonfilename);
-#if PRINT_DEBUG
+
 						printf("[%s][INFO] Load json file \"%s\"\n", __func__, directory_path);
 #endif
 					}
