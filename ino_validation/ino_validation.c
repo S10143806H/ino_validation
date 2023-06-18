@@ -64,7 +64,12 @@ void removeChar(char* str, char c);
 const char* validateINO(const char* directory_path);
 /* Clear all content in the TXT file */
 void resetTXT(const char* directory_path);
-
+/* Update content in the input to TXT file */
+void updateTXT(const char* input);
+/* Repalce the single backslash to double in Windows*/
+void replaceBackslash(char* str);
+/* Similar function as REGEX*/
+void extractParam(char* line, char* param);
 // -------------------------------------------------------------
 
 /* Conveert model input type to model filename*/
@@ -75,8 +80,7 @@ const char* input2model(const char* input);
 const char* input2header(const char* input);
 /* Update content in the input to TXT file */
 void updateNATXT(const char* filepath, const char* start_line, const char* end_line);
-/* Update content in the input to TXT file */
-void updateTXT(const char* input);
+
 
 /* Declear common file paths */
 char* path_arduino15_add	= "\\AppData\\Local\\Arduino15";
@@ -144,15 +148,11 @@ int main(int argc, char* argv[]) {
 
 	path_example = validateINO(path_build);
 	printf("[%s][INFO] path_example            = %s\n", __func__, path_example);
-	printf("[%s][INFO] name_example            = %s\n", __func__, name_example);
 
 	// SECTION FOR FUNCTION TEST =======================================================
 	writeTXT(path_example);
 
-	
-	
-	
-	
+
 	exit(1);
 	while (1);
 	printf("111\n");
@@ -389,14 +389,15 @@ void resetTXT(const char* directory_path) {
 
 void updateTXT(const char* input) {
 	FILE* file = fopen(path_txtfile, "a");
-	char filepath[] = "filepath.txt";
 
 	if (file) {
 		fprintf(file, "%s\n", input);
 		fclose(file);
 	}
 	else {
+#if PRINT_DEBUG
 		printf("[%s][Error] Failed to open the file.\n", __func__);
+#endif	
 		perror(path_txtfile);
 		return EXIT_FAILURE;
 	}
@@ -518,6 +519,29 @@ const char* validateINO(const char* directory_path) {
 	return path_example;
 }
 
+void replaceBackslash(char* str) {
+	char* found = NULL; 
+	// search for the first occurance of `\`
+	found = strchr(str, '\\'); 
+	while (found != NULL) { 
+		// replace as `\\`
+		memmove(found + 1, found, strlen(found) + 1); 
+		*found = '\\'; 
+		// find next
+		found = strchr(found + 2, '\\\\'); 
+	} 
+}
+
+void extractParam(char* line, char* param) {
+	char* start = strchr(line, '(');
+	char* end = strchr(line, ')');
+	if (start != NULL && end != NULL && end > start) {
+		size_t length = end - start - 1;
+		strncpy(param, start + 1, length);
+		param[length] = '\0';
+	}
+}
+
 void writeTXT(const char* path) {
 	DIR* dir;
 	struct dirent* ent;
@@ -527,39 +551,50 @@ void writeTXT(const char* path) {
 	unsigned int line_count = 0;
 
 	path = path_example;
+	replaceBackslash(path);
 
 #if PRINT_DEBUG
 	printf("[%s][INFO] Load json file \"%s\"\n", __func__, path);
 #endif
-	// check weather dir is valid
-	if ((dir = opendir(path)) != NULL) {
-		/* print all the files and directories within directory */
-		while ((ent = readdir(dir)) != NULL) {
-			if (ent->d_type == DT_REG) {
-				strcpy(buf, ent->d_name);
-				if (strstr(buf, key_ino) != 0) {
-					strcat(path, backslash);
-					strcat(path, buf);
-#if PRINT_DEBUG
-					printf("[%s][INFO] path_example            = %s\n", __func__, path);
-#endif
+
+	FILE* file = fopen(path, "r");  //FILE* file = fopen(path, "r, ccs=UTF-8");
+	char param[100];
+
+	if(file) {
+		char line[1024];
+		while (fgets(line, sizeof(line), file)) {
+			if (strstr(line, key_ambNN) != NULL && strstr(line, "//") == NULL && strstr(line, key_amb_bypassNN1) == NULL && strstr(line, key_amb_bypassNN2) == NULL){
+				printf("%s\n", line);
+				extractParam(line, param);
+				printf("Extracted parameter: %s\n", param);
+				
+				char* token;
+				char str[100];
+				int count = 0;
+
+				token = strtok(param, ", ");
+				while (token != NULL) {
+					strcpy(str, token);
+					switch (count) {
+					case 0:
+						printf("Variable 1: %s\n", str);
+						break;
+					case 1:
+						printf("Variable 2: %s\n", str);
+						break;
+					case 2:
+						printf("Variable 3: %s\n", str);
+						break;
+					case 3:
+						printf("Variable 4: %s\n", str);
+						break;
+					}
+					count++;
+					token = strtok(NULL, ", ");
 				}
+			
 			}
 		}
-	}
-	// Update TXT file
-	updateTXT("----------------------------------");
-	updateTXT("Current ino contains model(s):");
-
-	// Open file
-	FILE* file = fopen(path, "r");  //FILE* file = fopen(path, "r, ccs=UTF-8");
-	if (file) {
-		char line[1024];
-		// print lines in file
-		while (fgets(line, sizeof(line), file)) {
-			printf("%s\n",line);
-		}
-		
 		fclose(file);
 	}
 	else {
@@ -567,6 +602,9 @@ void writeTXT(const char* path) {
 		perror(path);
 		return EXIT_FAILURE;
 	}
-
+	
+	// Update TXT file
+	updateTXT("----------------------------------");
+	updateTXT("Current ino contains model(s):");
 }
 
