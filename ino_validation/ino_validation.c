@@ -3,7 +3,7 @@
 #ifdef _WIN32
 	#include <io.h>
 	#include "dirent.h"	// https://codeyarns.com/tech/2014-06-06-how-to-use-dirent-h-with-visual-studio.html#gsc.tab=0
-#elif __linux__
+#else // #elif __linux__
 	#include <inttypes.h>
 	#include <unistd.h>
 	#include <dirent.h>
@@ -24,11 +24,10 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <errno.h>
-
 #include "cJSON.h"
 #include <locale.h>
 
-#define PRINT_DEBUG 0
+#define PRINT_DEBUG 1
 #define MAX_PATH_LENGTH 1024
 
 /* Declear global vairables */
@@ -70,12 +69,13 @@ void updateTXT(const char* input);
 void replaceBackslash(char* str);
 /* Similar function as REGEX*/
 void extractParam(char* line, char* param);
+/* Conveert model input type to model name*/
+const char* input2model(const char* input);
 // -------------------------------------------------------------
 
 /* Conveert model input type to model filename*/
 const char* input2filename(const char* dest_path, const char* input);
-/* Conveert model input type to model name*/
-const char* input2model(const char* input);
+
 /* Conveert model input type to model header file*/
 const char* input2header(const char* input);
 /* Update content in the input to TXT file */
@@ -88,7 +88,7 @@ char* ambpro2_add			= "\\packages\\realtek\\hardware\\AmebaPro2\\";
 char* model_add				= "\\variants\\common_nn_models";
 char* txtfile_add			= "\\misc\\";
 const char* path_build_options_json = NULL;
-const char* path_example = "";
+const char* path_example = NULL;
 const char* name_example = NULL;
 const char* ext_json = ".json";
 const char* key_json = "build";
@@ -172,6 +172,8 @@ printf("222\n");
 	}
 
 	return 0;
+
+
 }
 
 /**
@@ -252,7 +254,7 @@ const char* input2model(const char* input) {
 		}
 	}
 
-	return NULL;
+	return "NA";
 }
 
 const char* input2header(const char* input) {
@@ -497,9 +499,9 @@ const char* validateINO(const char* directory_path) {
 	cJSON* data = loadJSONFile(path_build_options_json);
 	// Arduino IDE1.0 
 	cJSON* path_example = cJSON_GetObjectItem(data, "sketchLocation");
-	path_example = path_example->valuestring;
-	// Arduino IDE2.0	
 
+	/*
+	// Arduino IDE2.0	
 	if (strstr(path_example, key_amb) == NULL) {
 		name_example = strrchr(path_example, '\\');
 		//removeChar(name_example, '\\');
@@ -508,15 +510,14 @@ const char* validateINO(const char* directory_path) {
 			//strcat(name_example, key_ino);
 			// find filepath in includes.cache
 		//}
-#ifdef PRINT_DEBUG
-		printf("[%s][INFO] Current example path: %s \n", __func__, path_example);
-#endif	
 		//printf("[%s][INFO] name_example = %s\n", __func__, name_example);	
 	}
-	// Clean up cJSON object and allocated memory
-	cJSON_Delete(data);
-	//free(data);
-	return path_example;
+	*/
+#ifdef PRINT_DEBUG
+	printf("[%s][INFO] Current example path: %s \n", __func__, path_example->valuestring);
+#endif	
+
+	return path_example->valuestring;
 }
 
 void replaceBackslash(char* str) {
@@ -542,6 +543,11 @@ void extractParam(char* line, char* param) {
 	}
 }
 
+void error_handler(const char *message) {
+	fprintf(stderr, "[Error] %s\n", message);
+	exit(1);
+}
+
 void writeTXT(const char* path) {
 	DIR* dir;
 	struct dirent* ent;
@@ -549,50 +555,114 @@ void writeTXT(const char* path) {
 	const char backslash[] = "\\";
 	char line[MAX_PATH_LENGTH] = {0};
 	unsigned int line_count = 0;
-
+	char model_type[100] = "";
+	char model_name_od[100] = "";
+	char model_name_fd[100] = "";
+	char model_name_fr[100] = "";
 	path = path_example;
-	replaceBackslash(path);
+	// replaceBackslash(path);
 
 #if PRINT_DEBUG
-	printf("[%s][INFO] Load json file \"%s\"\n", __func__, path);
+	printf("[%s][INFO] Load example: \"%s\"\n", __func__, path);
 #endif
 
 	FILE* file = fopen(path, "r");  //FILE* file = fopen(path, "r, ccs=UTF-8");
 	char param[100];
 
+	updateTXT("----------------------------------");
+	updateTXT("Current ino contains model(s):");
+
 	if(file) {
 		char line[1024];
 		while (fgets(line, sizeof(line), file)) {
+			/* check whether keywordNN in file content */ 
 			if (strstr(line, key_ambNN) != NULL && strstr(line, "//") == NULL && strstr(line, key_amb_bypassNN1) == NULL && strstr(line, key_amb_bypassNN2) == NULL){
-				printf("%s\n", line);
 				extractParam(line, param);
 				printf("Extracted parameter: %s\n", param);
-				
 				char* token;
-				char str[100];
-				int count = 0;
-
 				token = strtok(param, ", ");
-				while (token != NULL) {
-					strcpy(str, token);
-					switch (count) {
-					case 0:
-						printf("Variable 1: %s\n", str);
-						break;
-					case 1:
-						printf("Variable 2: %s\n", str);
-						break;
-					case 2:
-						printf("Variable 3: %s\n", str);
-						break;
-					case 3:
-						printf("Variable 4: %s\n", str);
-						break;
-					}
-					count++;
+				if (token != NULL) { 
+					strcpy(model_type, token);
+					printf("Model Type: %s\n", model_type);
+					/* ------------------ object detection ------------------*/
 					token = strtok(NULL, ", ");
+					printf("1 token: %s\n", token);
+					if (token != NULL) {
+						// check model combination rules
+						if (strcmp(model_type, "OBJECT_DETECTION") == 0) {
+							if (strcmp(token, "NA_MODEL") == 0 || strstr(token, "YOLO") == NULL) {
+								goto error_combination;
+							}
+						}
+						// check customized model
+						if (strstr(token, key_amb_customized) != NULL) {
+							printf("key_amb_customized\n");
+						}
+						strcpy(model_name_od, token);
+						/* ----------------- face detection -----------------*/
+						token = strtok(NULL, ", ");	
+						printf("2 token: %s\n", token);
+						if (token != NULL) {
+							// check model combination rules
+							if (strcmp(model_type, "FACE_DETECTION") == 0) {
+								if (strcmp(token, "NA_MODEL") == 0 || strstr(token, "SCRFD") == NULL) {
+									goto error_combination;
+								}
+							}
+							// check customized model
+							if (strstr(token, key_amb_customized) != NULL) {
+								printf("key_amb_customized\n");
+							}
+							strcpy(model_name_fd, token);
+							/*-------------- face recognition --------------*/
+							token = strtok(NULL, ", "); 
+							printf("3 token: %s\n", token);
+							// check model combination rules
+							if (strcmp(model_type, "FACE_RECOGNITION") == 0) {
+								if (strcmp(model_name_fd, "NA_MODEL") == 0 || strstr(model_name_fd, "SCRFD") == NULL || strcmp(token, "NA_MODEL") == 0 || strstr(token, "MOBILEFACENET") == NULL) {
+									goto error_combination;
+								}
+							}
+							// check customized model
+							if (strstr(token, key_amb_customized) != NULL) {
+								printf("key_amb_customized\n");
+							}
+							if (token != NULL) {		 
+								strcpy(model_name_fr, token);
+							}
+						}
+					}
+
+					/* default settings for all models */
+					else {
+						/* provide default settings for all models if user never provide any selections*/
+						if (strcmp(model_type, "OBJECT_DETECTION") == 0 && strcmp(input2model(model_name_od), "NA") == 0) {
+							printf("111\n");
+							strcpy(model_name_od, "DEFAULT_YOLOV4TINY");
+							strcpy(model_name_fd, "NA_MODEL");
+							strcpy(model_name_fr, "NA_MODEL");
+						}
+						if (strcmp(model_type, "FACE_DETECTION") == 0 && strcmp(input2model(model_name_od), "NA") == 0) {
+							printf("222\n");
+							strcpy(model_name_od, "NA_MODEL");
+							strcpy(model_name_fd, "DEFAULT_SCRFD");
+							strcpy(model_name_fr, "NA_MODEL");
+						}
+						if (strcmp(model_type, "FACE_RECOGNITION") == 0 && strcmp(input2model(model_name_od), "NA") == 0) {
+							printf("333\n");
+							strcpy(model_name_od, "NA_MODEL");
+							strcpy(model_name_fd, "DEFAULT_SCRFD");
+							strcpy(model_name_fr, "DEFAULT_MOBILEFACENET");
+						}
+					}
 				}
-			
+				printf("-------------------------------------\n");
+				printf("Model Name OD: %s\n", input2model(model_name_od));
+				printf("Model Name FD: %s\n", input2model(model_name_fd));
+				printf("Model Name FR: %s\n", input2model(model_name_fr));
+				updateTXT(input2model(model_name_od));
+				updateTXT(input2model(model_name_fd));
+				updateTXT(input2model(model_name_fr));
 			}
 		}
 		fclose(file);
@@ -602,9 +672,73 @@ void writeTXT(const char* path) {
 		perror(path);
 		return EXIT_FAILURE;
 	}
-	
-	// Update TXT file
+			
+	// update NA for non-NN examples
+	if (strlen(model_name_od) == 0 && strlen(model_name_fd) == 0 && strlen(model_name_fr) == 0) {
+		for (int i = 0; i < 3; i++) {
+				updateTXT("NA");
+			}
+	}
+		
 	updateTXT("----------------------------------");
-	updateTXT("Current ino contains model(s):");
+	updateTXT("Current NN header file(s): ");
+
+	FILE* file2 = fopen(path, "r");  //FILE* file = fopen(path, "r, ccs=UTF-8");
+	if (file2) {
+		char line[1024];
+		printf("Extracted parameter: %s\n", line);
+		while (fgets(line, sizeof(line), file2)) {
+			/* check whether keywordNN in file content */
+			if (strstr(line, key_amb_header) != NULL && strstr(line, "NN") != NULL) {
+				printf("Extracted parameter: %s\n", line);
+				updateTXT(line);
+			}
+		}
+		fclose(file2);
+	}
+	else {
+		printf("[%s][Error] Failed to open the file.\n", __func__);
+		perror(path);
+		return EXIT_FAILURE;
+	}
+
+	updateTXT("----------------------------------");
+	updateTXT("Current ino video status:");
+
+
+
+
+	updateTXT("----------------------------------");
+	updateTXT("Current ino contains header file(s): ");
+
+	FILE* file4 = fopen(path, "r");  //FILE* file = fopen(path, "r, ccs=UTF-8");
+	if (file4) {
+		char line[1024];
+		printf("Extracted parameter: %s\n", line);
+		while (fgets(line, sizeof(line), file4)) {
+			/* check whether keywordNN in file content */
+			if (strstr(line, key_amb_header) != NULL) {
+				printf("Extracted parameter: %s\n", line);
+				updateTXT(line);
+			}
+		}
+		fclose(file4);
+	}
+	else {
+		printf("[%s][Error] Failed to open the file.\n", __func__);
+		perror(path);
+		return EXIT_FAILURE;
+	}
+
+
+	return 0;
+
+
+	
+error_combination:
+	error_handler("Model mismatch. Please check modelSelect() again.");
+
+error_customized:
+	error_handler("Model not found. Please check your sketch folder again.");
 }
 
