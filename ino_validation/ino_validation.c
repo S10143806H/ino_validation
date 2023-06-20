@@ -27,81 +27,83 @@
 #include "cJSON.h"
 #include <locale.h>
 
-#define PRINT_DEBUG 1
+#define PRINT_DEBUG 0
 #define MAX_PATH_LENGTH 1024
-
-/* Declear global vairables */
-const char* key_ambNN					= "modelSelect";
-const char* key_ambVOE					= "configVideoChannel";
-const char* key_amb_header				= "#include";
-const char* key_amb_customized			= "CUSTOMIZED";
-const char* key_amb_default				= "DEFAULT";
-const char* key_amb_default_backup		= "Dbackup";
-const char* key_amb_customized_backup	= "Cbackup";
-const char* key_amb_bypassNN1			= " .modelSelect";
-const char* key_amb_bypassNN2			= " modelSelect"; // duplicated with key_ambNN
-const char* key_amb_bypassVOE1			= " .configVideoChannel";
-const char* key_amb_bypassVOE2			= " configVideoChannel";
-const char* filename_txt				= "ino_validation.txt";
 
 /* Declear function headers */
 int dirExists(const char* directory_path);
+/* Return folder names under current directory */
 const char* dirName(const char* directory_path);
+/* Function returns nuber of content under this path */
 int isDirExists(const char* path);
-
-/* Functions below are for txt file manipulation */
+/* Functions below are for txt f_model manipulation */
 int endsWith(const char* str, const char* suffix);
+/* Function checks whether the directory exisits */
 void writeTXT(const char* path_example);
-
-/* Returns example file path inside the temp JSON file */
+/* Returns example f_model path inside the temp JSON f_model */
 const char* pathTempJSON(const char* directory_path, const char* ext, const char* key);
-/* Load JSON file from the directory and parse into cJSON data format */
+/* Load JSON f_model from the directory and parse into cJSON data format */
 cJSON* loadJSONFile(const char* directory_path);
 /* Remove char c from string str */
 void removeChar(char* str, char c);
 /* Validate example in directory_path and returns example path */
 const char* validateINO(const char* directory_path);
-/* Clear all content in the TXT file */
+/* Clear all content in the ino_validation.txt file */
 void resetTXT(const char* directory_path);
-/* Update content in the input to TXT file */
+/* Update content in the input to TXT f_model */
 void updateTXT(const char* input);
 /* Repalce the single backslash to double in Windows*/
 void replaceBackslash(char* str);
 /* Similar function as REGEX*/
 void extractParam(char* line, char* param);
-/* Conveert model input type to model name*/
+/* Extract header from quote symbols*/
+void extractString(char* source, char* result);
+/* Handler to print error message in the Arduino IDE */
+void error_handler(const char* message);
+/* Convert model input type to model name*/
 const char* input2model(const char* input);
+/* Find the dir name of input source file path*/
+void extractRootDirectory(char* source, char* result);
 // -------------------------------------------------------------
-
 /* Conveert model input type to model filename*/
 const char* input2filename(const char* dest_path, const char* input);
-
-/* Conveert model input type to model header file*/
+/* Conveert model input type to model header f_model*/
 const char* input2header(const char* input);
-/* Update content in the input to TXT file */
-void updateNATXT(const char* filepath, const char* start_line, const char* end_line);
 
+void convertPath(char* path);
+
+/* Declear global vairables */
+const char* key_amb_NN					= "modelSelect";
+const char* key_amb_bypassNN1			= " .modelSelect";
+const char* key_amb_bypassNN2			= " modelSelect";
+const char* key_amb_VOE					= "configVideoChannel";
+const char* key_amb_bypassVOE1			= " .configVideoChannel";
+const char* key_amb_bypassVOE2			= " configVideoChannel";
+const char* key_amb_header				= "#include";
+const char* key_amb_customized			= "CUSTOMIZED";
+const char* key_json 					= "build";
+const char* key_amb 					= "Arduino15";
+const char* key_ino 					= ".ino";
+const char* ext_json 					= ".json";
+// const char* key_amb_default				= "DEFAULT";
+// const char* key_amb_default_backup		= "Dbackup";
+// const char* key_amb_customized_backup	= "Cbackup";
+const char* filename_txt				= "ino_validation.txt";
 
 /* Declear common file paths */
-char* path_arduino15_add	= "\\AppData\\Local\\Arduino15";
-char* ambpro2_add			= "\\packages\\realtek\\hardware\\AmebaPro2\\";
-char* model_add				= "\\variants\\common_nn_models";
-char* txtfile_add			= "\\misc\\";
+char* path_arduino15_add				= "\\AppData\\Local\\Arduino15";
+char* path_ambpro2_add					= "\\packages\\realtek\\hardware\\AmebaPro2\\";
+char* path_model_add					= "\\variants\\common_nn_models";
+char* path_txtfile_add					= "\\misc\\";
 const char* path_build_options_json = NULL;
 const char* path_example = NULL;
 const char* name_example = NULL;
-const char* ext_json = ".json";
-const char* key_json = "build";
-const char* key_amb = "Arduino15";
-const char* key_ino = ".ino";
 
 char path_root[MAX_PATH_LENGTH];
-char arduino15_path[MAX_PATH_LENGTH];
+char path_arduino15[MAX_PATH_LENGTH];
 char path_pro2[MAX_PATH_LENGTH];
 char path_model[MAX_PATH_LENGTH];
 char path_txtfile[MAX_PATH_LENGTH];
-
-
 
 int main(int argc, char* argv[]) {
 	setlocale(LC_ALL, "en_US.UTF-8");
@@ -117,15 +119,28 @@ int main(int argc, char* argv[]) {
 	const char* path_tools = argv[2];
 
 	strcpy(path_root, getenv("USERPROFILE"));
-	strcpy(arduino15_path, getenv("USERPROFILE"));
-	strcat(arduino15_path, path_arduino15_add);
-	strcpy(path_pro2, arduino15_path);
-	strcat(path_pro2, ambpro2_add);
+	strcpy(path_arduino15, getenv("USERPROFILE"));
+	strcat(path_arduino15, path_arduino15_add);
+	strcpy(path_pro2, path_arduino15);
+	strcat(path_pro2, path_ambpro2_add);
 	strcpy(path_model, path_pro2);
 	strcat(path_model, dirName(path_pro2));
-	strcat(path_model, model_add);
+	strcat(path_model, path_model_add);
 	strcpy(path_txtfile, argv[2]);
-	strcat(path_txtfile, txtfile_add);
+	strcat(path_txtfile, path_txtfile_add);
+
+	// convert path according to system
+	convertPath(path_build);
+	convertPath(path_tools);
+	convertPath(getenv("USERPROFILE"));
+	convertPath(getenv("HOMEDRIVE"));
+	convertPath(getenv("HOMEPATH"));
+	convertPath(path_root);
+	convertPath(path_arduino15);
+	convertPath(path_pro2);
+	convertPath(dirName(path_pro2));
+	convertPath(path_model);
+	convertPath(path_txtfile);
 
 	// Print the input parameters 
 	printf("Parameter 1      = %s\n", path_build);
@@ -134,7 +149,7 @@ int main(int argc, char* argv[]) {
 	printf("HOMEDRIVE        = %s\n", getenv("HOMEDRIVE"));
 	printf("HOMEPATH         = %s\n", getenv("HOMEPATH"));
 	printf("path_root        = %s\n", path_root);
-	printf("arduino15_path   = %s\n", arduino15_path);
+	printf("path_arduino15   = %s\n", path_arduino15);
 	printf("path_pro2        = %s\n", path_pro2);
 	printf("ver_pro2         = %s\n", dirName(path_pro2));
 	printf("path_model       = %s\n", path_model);
@@ -142,43 +157,37 @@ int main(int argc, char* argv[]) {
 
 	resetTXT(path_txtfile);
 	printf("[%s][INFO] resetTXT done\n", __func__);
-	// generate path
 	path_build_options_json = pathTempJSON(path_build, ext_json, key_json);
 	printf("[%s][INFO] path_build_options_json = %s\n", __func__, path_build_options_json);
-
 	path_example = validateINO(path_build);
 	printf("[%s][INFO] path_example            = %s\n", __func__, path_example);
 
 	// SECTION FOR FUNCTION TEST =======================================================
 	writeTXT(path_example);
 
-
 	exit(1);
 	while (1);
-	printf("111\n");
-printf("222\n");
 
 	// END OF SECTION FOR FUNCTION TEST =======================================================
-
-	const char* input = "CUSTOMIZED_MOBILEFACENET";
-	const char* model = input2model(input);
-	printf("Model: %s\n", model);
-	updateTXT("Hello, world!");
-
-
-	// check whether directory exists
-	if (isDirExists(path_build) && isDirExists(path_tools)) {
-		
-	}
-
 	return 0;
-
-
 }
 
-/**
-* Function returns nuber of content under this path
-*/
+void convertPath(char* path) {
+    #ifdef _WIN32
+        char* separator = "\\";
+        char* replacement = "\\";
+    #else
+        char* separator = "\\";
+        char* replacement = "/";
+    #endif
+
+    char* position = strstr(path, separator); // 查找路径中的斜杠
+    while (position != NULL) {
+        memcpy(position, replacement, strlen(replacement)); // 替换斜杠
+        position = strstr(position + strlen(replacement), separator); // 继续查找下一个斜杠
+    }
+}
+
 int isDirExists(const char* path) {
 	DIR* dir;
 	struct dirent* ent;
@@ -290,12 +299,12 @@ const char* input2filename(const char* dest_path, const char* input) {
 				char file_json_path[1024];
 				sprintf(file_json_path, "%s/%s", dest_path, entry->d_name);
 
-				FILE* file = fopen(file_json_path, "r");
-				if (file) {
+				FILE* f_model = fopen(file_json_path, "r");
+				if (f_model) {
 					char line[1024];
-					while (fgets(line, sizeof(line), file)) {
+					while (fgets(line, sizeof(line), f_model)) {
 						// Assuming the JSON structure is known
-						if (strstr(line, input) != NULL && strstr(line, "\"file\"") != NULL) {
+						if (strstr(line, input) != NULL && strstr(line, "\"f_model\"") != NULL) {
 							char* start = strchr(line, '\"') + 1;
 							char* end = strrchr(line, '\"');
 							size_t length = end - start;
@@ -306,7 +315,7 @@ const char* input2filename(const char* dest_path, const char* input) {
 						}
 					}
 
-					fclose(file);
+					fclose(f_model);
 				}
 			}
 		}
@@ -317,11 +326,6 @@ const char* input2filename(const char* dest_path, const char* input) {
 	return value_file;
 }
 
-/*
-* Function checks wehtther the directory exisits 
-* Returns 1 if dir is valid
-* Returns 0 if dir is invalid
-*/
 int dirExists(const char* directory_path) {
 	DIR* directory = opendir(directory_path);
 	// check weather dir is valid
@@ -334,10 +338,6 @@ int dirExists(const char* directory_path) {
 	}
 }
 
-/*
-* Function check folder names under current directory 
-* Returns NA
-*/
 const char* dirName(const char* directory_path) {
 	int sdk_counter = 0;
 	struct dirent* entry;
@@ -369,9 +369,6 @@ const char* dirName(const char* directory_path) {
 	closedir(directory);
 }
 
-/*
-* Create empty txt file and renamed as ino_validation.txt
-*/
 void resetTXT(const char* directory_path) {
 	DIR* dir = opendir(directory_path);
 	struct stat st;
@@ -382,23 +379,23 @@ void resetTXT(const char* directory_path) {
 	}
 	strcat(directory_path, filename_txt);
 
-	// open txt file and clear everything
-	FILE* file = fopen(directory_path, "w");
-	if (file != NULL) {
+	// open txt f_model and clear everything
+	FILE* f_model = fopen(directory_path, "w");
+	if (f_model != NULL) {
         
 	}
 }
 
 void updateTXT(const char* input) {
-	FILE* file = fopen(path_txtfile, "a");
+	FILE* f_model = fopen(path_txtfile, "a");
 
-	if (file) {
-		fprintf(file, "%s\n", input);
-		fclose(file);
+	if (f_model) {
+		fprintf(f_model, "%s\n", input);
+		fclose(f_model);
 	}
 	else {
 #if PRINT_DEBUG
-		printf("[%s][Error] Failed to open the file.\n", __func__);
+		printf("[%s][Error] Failed to open the f_model.\n", __func__);
 #endif	
 		perror(path_txtfile);
 		return EXIT_FAILURE;
@@ -410,7 +407,7 @@ const char* pathTempJSON(const char* directory_path, const char* ext, const char
 	struct dirent* ent;
 
 #if PRINT_DEBUG
-	printf("[%s][INFO] Load json file \"%s\"\n", __func__, directory_path);
+	printf("[%s][INFO] Load json f_model \"%s\"\n", __func__, directory_path);
 #endif
 	if ((dir = opendir(directory_path)) != NULL) {
 		/* print all the files and directories within directory */
@@ -437,38 +434,38 @@ const char* pathTempJSON(const char* directory_path, const char* ext, const char
 }
 
 cJSON* loadJSONFile(const char* directory_path) {
-	// Open file
-	FILE* file = fopen(directory_path, "r");
-	if (file == NULL) {
-		printf("[%s][Error] Failed to open the file.\n", __func__);
+	// Open f_model
+	FILE* f_model = fopen(directory_path, "r");
+	if (f_model == NULL) {
+		printf("[%s][Error] Failed to open the f_model.\n", __func__);
 		return 1;
 	}
 
-	// Get the file size
-	fseek(file, 0, SEEK_END);
-	long file_size = ftell(file);
-	rewind(file);
+	// Get the f_model size
+	fseek(f_model, 0, SEEK_END);
+	long file_size = ftell(f_model);
+	rewind(f_model);
 
 	// Allocate memory to hold the JSON data
 	char* json_data = (char*)malloc(file_size + 1);
 	if (json_data == NULL) {
 		printf("[%s][Error] Failed to allocate memory.\n", __func__);
-		fclose(file);
+		fclose(f_model);
 		return 1;
 	}
 
-	// Read the JSON data from the file
-	size_t read_size = fread(json_data, 1, file_size, file);
+	// Read the JSON data from the f_model
+	size_t read_size = fread(json_data, 1, file_size, f_model);
 	if (read_size != file_size) {
-		printf("[%s][Error] Failed to read the file.\n", __func__);
-		fclose(file);
+		printf("[%s][Error] Failed to read the f_model.\n", __func__);
+		fclose(f_model);
 		free(json_data);
 		return 1;
 	}
 	json_data[file_size] = '\0';  // Null-terminate the string
 
-	// Close the file
-	fclose(file);
+	// Close the f_model
+	fclose(f_model);
 
 	// Parse the JSON data
 	cJSON* data = cJSON_Parse(json_data);
@@ -495,7 +492,7 @@ const char* validateINO(const char* directory_path) {
 	DIR* dir;
 	struct dirent* ent;
 
-	// Open the JSON file and retrive the data
+	// Open the JSON f_model and retrive the data
 	cJSON* data = loadJSONFile(path_build_options_json);
 	// Arduino IDE1.0 
 	cJSON* path_example = cJSON_GetObjectItem(data, "sketchLocation");
@@ -548,6 +545,37 @@ void error_handler(const char *message) {
 	exit(1);
 }
 
+void extractString(char* source, char* result) {
+	char* start = strchr(source, '\"'); // find the 1st "
+	if (start == NULL) {
+		strcpy(result, ""); // set as empty string if not found
+		return;
+	}
+
+	start++; // skip the first "
+
+	char* end = strchr(start, '\"'); // find the 2nd "
+	if (end == NULL) {
+		strcpy(result, ""); // set as empty string if not found
+		return;
+	}
+
+	int length = end - start; 
+	strncpy(result, start, length); 
+	result[length] = '\0'; // add ending param at EOL
+}
+
+void extractRootDirectory(char* filepath, char* rootDir) {
+	char* lastSeparator = strrchr(filepath, '\\'); // find last occurance of backspace
+	if (lastSeparator == NULL) {
+		strcpy(rootDir, ""); // set as empty string if not found
+		return;
+	}
+	int length = lastSeparator - filepath + 1; 
+	strncpy(rootDir, filepath, length); 
+	rootDir[length] = '\0'; // add ending param at EOL
+}
+
 void writeTXT(const char* path) {
 	DIR* dir;
 	struct dirent* ent;
@@ -555,10 +583,15 @@ void writeTXT(const char* path) {
 	const char backslash[] = "\\";
 	char line[MAX_PATH_LENGTH] = {0};
 	unsigned int line_count = 0;
+	char voe_status[100] = "NA";
 	char model_type[100] = "";
 	char model_name_od[100] = "";
 	char model_name_fd[100] = "";
 	char model_name_fr[100] = "";
+	char line_strip_header[100] = "NA";
+	char line_strip_headerNN[100] = "NA";
+	char dir_example[100] = "NA";
+
 	path = path_example;
 	// replaceBackslash(path);
 
@@ -566,17 +599,52 @@ void writeTXT(const char* path) {
 	printf("[%s][INFO] Load example: \"%s\"\n", __func__, path);
 #endif
 
-	FILE* file = fopen(path, "r");  //FILE* file = fopen(path, "r, ccs=UTF-8");
-	char param[100];
-
 	updateTXT("----------------------------------");
 	updateTXT("Current ino contains model(s):");
 
-	if(file) {
+	// check path format: IDE1 file path, IDE2 dir path
+	if (strstr(path, ".ino") == NULL) {
+		printf("IDE2\n");
+		//																	update path 
+		DIR* dir;
+		struct dirent* ent;
+		int count = 0;
+
+		// check weather dir is valid
+		if ((dir = opendir(path)) != NULL) {
+			/* print all the files and directories within directory */
+			while ((ent = readdir(dir)) != NULL) {
+				if (ent->d_type == DT_REG) {
+					count++;
+#if PRINT_DEBUG
+					printf("[%s] File:%s\n", __func__, ent->d_name);
+#endif
+					if (strstr(ent->d_name, ".ino") == NULL) {
+#ifdef _WIN32
+					strcat(path, "\\");
+#else
+					strcat(path, "/");
+#endif
+					strcat(path, ent->d_name);
+					printf("[%s] path:%s\n", __func__, path);
+					}
+				}
+			}
+		}
+		else {
+			/* opendir() failed for some other reason. */
+			return 0;
+		}
+	}
+
+
+	FILE* f_model = fopen(path, "r");  //FILE* f_model = fopen(path, "r, ccs=UTF-8");
+	char param[100];
+	if(f_model) {
 		char line[1024];
-		while (fgets(line, sizeof(line), file)) {
-			/* check whether keywordNN in file content */ 
-			if (strstr(line, key_ambNN) != NULL && strstr(line, "//") == NULL && strstr(line, key_amb_bypassNN1) == NULL && strstr(line, key_amb_bypassNN2) == NULL){
+		while (fgets(line, sizeof(line), f_model)) {
+			/* check whether keywordNN in f_model content */ 
+			if (strstr(line, key_amb_NN) != NULL && strstr(line, "//") == NULL && strstr(line, key_amb_bypassNN1) == NULL && strstr(line, key_amb_bypassNN2) == NULL){
 				extractParam(line, param);
 				printf("Extracted parameter: %s\n", param);
 				char* token;
@@ -593,10 +661,43 @@ void writeTXT(const char* path) {
 							if (strcmp(token, "NA_MODEL") == 0 || strstr(token, "YOLO") == NULL) {
 								goto error_combination;
 							}
-						}
-						// check customized model
-						if (strstr(token, key_amb_customized) != NULL) {
-							printf("key_amb_customized\n");
+							// check customized od model
+							if (strstr(token, key_amb_customized) != NULL) {
+#if PRINT_DEBUG
+								printf("od key_amb_customized\n");
+								printf("customized od: %s\n", input2model(token));
+#endif
+								extractRootDirectory(path_example, dir_example);
+#if PRINT_DEBUG
+								printf("customized dir: %s\n", dir_example);
+#endif
+								DIR* dir;
+								struct dirent* ent;
+								int count = 0;
+
+								// check weather dir is valid
+								if ((dir = opendir(dir_example)) != NULL) {
+									/* print all the files and directories within directory */
+									while ((ent = readdir(dir)) != NULL) {
+										if (ent->d_type == DT_REG) {
+											count++;
+										}
+										if (strstr(ent->d_name, ".nb") != NULL) {
+											if (strstr(ent->d_name, "yolo") != NULL) {
+#if PRINT_DEBUG
+												printf("%s\n", ent->d_name);
+#endif
+											}
+											else {
+												goto error_customized_mismatch;
+											}
+										}
+									}
+								}
+								if (count <= 1) {
+									goto error_customized_missing;
+								}
+							}
 						}
 						strcpy(model_name_od, token);
 						/* ----------------- face detection -----------------*/
@@ -608,10 +709,40 @@ void writeTXT(const char* path) {
 								if (strcmp(token, "NA_MODEL") == 0 || strstr(token, "SCRFD") == NULL) {
 									goto error_combination;
 								}
-							}
-							// check customized model
-							if (strstr(token, key_amb_customized) != NULL) {
-								printf("key_amb_customized\n");
+								// check customized fd model
+								if (strstr(token, key_amb_customized) != NULL) {
+									printf("fd key_amb_customized\n");
+									printf("customized fd: %s\n", input2model(token));
+									extractRootDirectory(path_example, dir_example);
+									printf("customized dir: %s\n", dir_example);
+
+									DIR* dir;
+									struct dirent* ent;
+									int count = 0;
+
+									// check weather dir is valid
+									if ((dir = opendir(dir_example)) != NULL) {
+										/* print all the files and directories within directory */
+										while ((ent = readdir(dir)) != NULL) {
+											if (ent->d_type == DT_REG) {
+												count++;
+											}
+											if (strstr(ent->d_name, ".nb") != NULL) {
+												if (strstr(ent->d_name, "scrfd") != NULL) {
+#if PRINT_DEBUG
+													printf("%s\n", ent->d_name);
+#endif
+												}
+												else {
+													goto error_customized_mismatch;
+												}
+											}
+										}
+									}
+									if (count <= 1) {
+										goto error_customized_missing;
+									}
+								}
 							}
 							strcpy(model_name_fd, token);
 							/*-------------- face recognition --------------*/
@@ -622,11 +753,41 @@ void writeTXT(const char* path) {
 								if (strcmp(model_name_fd, "NA_MODEL") == 0 || strstr(model_name_fd, "SCRFD") == NULL || strcmp(token, "NA_MODEL") == 0 || strstr(token, "MOBILEFACENET") == NULL) {
 									goto error_combination;
 								}
-							}
-							// check customized model
-							if (strstr(token, key_amb_customized) != NULL) {
-								printf("key_amb_customized\n");
-							}
+								// check customized fr model
+								if (strstr(token, key_amb_customized) != NULL) {
+									printf("fr key_amb_customized\n");
+									printf("customized fr: %s\n", input2model(token));
+									extractRootDirectory(path_example, dir_example);
+									printf("customized dir: %s\n", dir_example);
+
+									DIR* dir;
+									struct dirent* ent;
+									int count = 0;
+
+									// check weather dir is valid
+									if ((dir = opendir(dir_example)) != NULL) {
+										/* print all the files and directories within directory */
+										while ((ent = readdir(dir)) != NULL) {
+											if (ent->d_type == DT_REG) {
+												count++;
+											}
+											if (strstr(ent->d_name, ".nb") != NULL) {
+												if (strstr(ent->d_name, "mobilefacenet") != NULL) {
+#if PRINT_DEBUG
+													printf("%s\n", ent->d_name);
+#endif
+												}
+												else {
+													goto error_customized_mismatch;
+												}
+												}
+											}
+										}
+									if (count <= 1) {
+										goto error_customized_missing;
+									}
+								}
+							}			
 							if (token != NULL) {		 
 								strcpy(model_name_fr, token);
 							}
@@ -660,19 +821,19 @@ void writeTXT(const char* path) {
 				printf("Model Name OD: %s\n", input2model(model_name_od));
 				printf("Model Name FD: %s\n", input2model(model_name_fd));
 				printf("Model Name FR: %s\n", input2model(model_name_fr));
+				printf("-------------------------------------\n");
 				updateTXT(input2model(model_name_od));
 				updateTXT(input2model(model_name_fd));
 				updateTXT(input2model(model_name_fr));
 			}
 		}
-		fclose(file);
+		fclose(f_model);
 	}
 	else {
-		printf("[%s][Error] Failed to open the file.\n", __func__);
+		printf("[%s][Error] 1 Failed to open the file.\n", __func__);
 		perror(path);
 		return EXIT_FAILURE;
-	}
-			
+	}		
 	// update NA for non-NN examples
 	if (strlen(model_name_od) == 0 && strlen(model_name_fd) == 0 && strlen(model_name_fr) == 0) {
 		for (int i = 0; i < 3; i++) {
@@ -680,65 +841,92 @@ void writeTXT(const char* path) {
 			}
 	}
 		
-	updateTXT("----------------------------------");
+	updateTXT("-----------------------------------");
 	updateTXT("Current NN header file(s): ");
 
-	FILE* file2 = fopen(path, "r");  //FILE* file = fopen(path, "r, ccs=UTF-8");
-	if (file2) {
+	FILE* f_headerNN = fopen(path, "r");  //FILE* file = fopen(path, "r, ccs=UTF-8");
+	if (f_headerNN) {
 		char line[1024];
-		printf("Extracted parameter: %s\n", line);
-		while (fgets(line, sizeof(line), file2)) {
-			/* check whether keywordNN in file content */
+		while (fgets(line, sizeof(line), f_headerNN)) {
+			/* check whether keywordNN in f_model content */
 			if (strstr(line, key_amb_header) != NULL && strstr(line, "NN") != NULL) {
-				printf("Extracted parameter: %s\n", line);
-				updateTXT(line);
+				extractString(line, line_strip_headerNN);	// remove unnecessary part in the header
+#if PRINT_DEBUG
+				printf("Extracted string: %s\n", line_strip_headerNN);
+#endif
 			}
 		}
-		fclose(file2);
+		fclose(f_headerNN);
 	}
 	else {
-		printf("[%s][Error] Failed to open the file.\n", __func__);
+		printf("[%s][Error] 2 Failed to open the file.\n", __func__);
 		perror(path);
 		return EXIT_FAILURE;
 	}
+	updateTXT(line_strip_headerNN);
 
 	updateTXT("----------------------------------");
 	updateTXT("Current ino video status:");
 
-
-
-
-	updateTXT("----------------------------------");
-	updateTXT("Current ino contains header file(s): ");
-
-	FILE* file4 = fopen(path, "r");  //FILE* file = fopen(path, "r, ccs=UTF-8");
-	if (file4) {
+	FILE* f_VOE = fopen(path, "r");  //FILE* f_model = fopen(path, "r, ccs=UTF-8");
+	if (f_VOE) {
 		char line[1024];
-		printf("Extracted parameter: %s\n", line);
-		while (fgets(line, sizeof(line), file4)) {
-			/* check whether keywordNN in file content */
-			if (strstr(line, key_amb_header) != NULL) {
-				printf("Extracted parameter: %s\n", line);
-				updateTXT(line);
-			}
+		while (fgets(line, sizeof(line), f_VOE)) {
+			/* check whether keywordNN in f_model content */
+			if (strstr(line, key_amb_VOE) != NULL && strstr(line, "//") == NULL && strstr(line, key_amb_bypassVOE1) == NULL && strstr(line, key_amb_bypassVOE2) == NULL) {
+#if PRINT_DEBUG
+				printf("f_VOE Extracted string: %s\n", line);
+#endif
+				strcpy(voe_status,"ON");		
+			}	
 		}
-		fclose(file4);
+		fclose(f_VOE);					// update NA for video status
 	}
 	else {
-		printf("[%s][Error] Failed to open the file.\n", __func__);
+		printf("[%s][Error] Failed to open the f_model.\n", __func__);
+		perror(path);
+		return EXIT_FAILURE;
+	}		
+	updateTXT(voe_status);
+	
+	updateTXT("-------------------------------------");
+	updateTXT("Current ino contains header file(s): ");
+
+	FILE* f_header = fopen(path, "r");  //FILE* f_model = fopen(path, "r, ccs=UTF-8");
+	if (f_header) {
+		char line[1024];
+		while (fgets(line, sizeof(line), f_header)) {
+			/* check whether keywordNN in f_model content */
+			if (strstr(line, key_amb_header) != NULL) {
+				// remove unnecessary part in the header
+				//char line_strip[100];
+				extractString(line, line_strip_header);
+#if PRINT_DEBUG
+				printf("Extracted string: %s\n", line_strip);
+#endif
+				updateTXT(line_strip_header);
+			}
+		}
+		fclose(f_header);
+	}
+	else {
+		printf("[%s][Error] Failed to open the f_model.\n", __func__);
 		perror(path);
 		return EXIT_FAILURE;
 	}
-
+	if (strcmp(line_strip_header,"NA") == NULL) {
+		updateTXT(line_strip_header);
+	}
+	updateTXT("--------------------------------------");
 
 	return 0;
 
-
-	
 error_combination:
-	error_handler("Model mismatch. Please check modelSelect() again.");
+	error_handler("Model combination mismatch. Please check modelSelect() again.");
 
-error_customized:
-	error_handler("Model not found. Please check your sketch folder again.");
+error_customized_missing:
+	error_handler("Model missing. Please check your sketch folder again.");
+
+error_customized_mismatch:
+	error_handler("Customized model mismatch. Please check your sketch folder again.");
 }
-
