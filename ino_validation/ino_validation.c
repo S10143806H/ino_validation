@@ -2,7 +2,7 @@
 LINUX: 
 gcc -c cJSON.c
 ar rcs libcjson.a cJSON.o
-gcc ino_validation.c -o ino_validation -L. -ljson -static
+gcc ino_validation.c -o ino_validation -L. -lcjson -static
 
 */
 #define _GNU_SOURCE
@@ -59,8 +59,6 @@ const char* validateINO(const char* directory_path);
 void resetTXT(const char* directory_path);
 /* Update content in the input to TXT f_model */
 void updateTXT(const char* input);
-/* Repalce the single backslash to double in Windows*/
-void replaceBackslash(char* str);
 /* Similar function as REGEX*/
 void extractParam(char* line, char* param);
 /* Extract header from quote symbols*/
@@ -130,6 +128,7 @@ int main(int argc, char* argv[]) {
 #endif
 		exit(1);
 	}
+
 	// Retrieve the input parameters 
 	const char* path_build = argv[1];
 	const char* path_tools = argv[2];
@@ -151,6 +150,9 @@ int main(int argc, char* argv[]) {
 	strcat(path_model, path_model_add);
 	strcpy(path_txtfile, argv[2]);
 	strcat(path_txtfile, path_txtfile_add);
+
+	// Check if contains more than 1 SDK
+
 
 	// Print the input parameters 
 	printf("Parameter 1      = %s\n", path_build);
@@ -368,23 +370,23 @@ void resetTXT(const char* directory_path) {
 	}
 	strcat(directory_path, filename_txt);
 
-	// open txt f_model and clear everything
-	FILE* f_model = fopen(directory_path, "w");
-	if (f_model != NULL) {
+	// open txt file and clear everything
+	FILE* file = fopen(directory_path, "w");
+	if (file != NULL) {
         
 	}
 }
 
 void updateTXT(const char* input) {
-	FILE* f_model = fopen(path_txtfile, "a");
+	FILE* file = fopen(path_txtfile, "a");
 
-	if (f_model) {
-		fprintf(f_model, "%s\n", input);
-		fclose(f_model);
+	if (file) {
+		fprintf(file, "%s\n", input);
+		fclose(file);
 	}
 	else {
 #if PRINT_DEBUG
-		printf("[%s][Error] Failed to open the f_model.\n", __func__);
+		printf("[%s][Error] Failed to open the file.\n", __func__);
 #endif	
 		perror(path_txtfile);
 		return EXIT_FAILURE;
@@ -437,7 +439,7 @@ cJSON* loadJSONFile(const char* directory_path) {
 		return 1;
 	}
 
-	// Get the f_model size
+	// Get the file size
 	fseek(file, 0, SEEK_END);
 	long file_size = ftell(file);
 	rewind(file);
@@ -450,17 +452,17 @@ cJSON* loadJSONFile(const char* directory_path) {
 		return 1;
 	}
 
-	// Read the JSON data from the f_model
+	// Read the JSON data from the file
 	size_t read_size = fread(json_data, 1, file_size, file);
 	if (read_size != file_size) {
-		printf("[%s][Error] Failed to read the f_model.\n", __func__);
+		printf("[%s][Error] Failed to read the file.\n", __func__);
 		fclose(file);
 		free(json_data);
 		return 1;
 	}
 	json_data[file_size] = '\0';  // Null-terminate the string
 
-	// Close the f_model
+	// Close the file
 	fclose(file);
 
 	// Parse the JSON data
@@ -488,7 +490,7 @@ const char* validateINO(const char* directory_path) {
 	DIR* dir;
 	struct dirent* ent;
 
-	// Open the JSON f_model and retrive the data
+	// Open the JSON file and retrive the data
 	cJSON* data = loadJSONFile(path_build_options_json);
 	// Arduino IDE1.0 
 	cJSON* path_example = cJSON_GetObjectItem(data, "sketchLocation");
@@ -511,19 +513,6 @@ const char* validateINO(const char* directory_path) {
 #endif	
 
 	return path_example->valuestring;
-}
-
-void replaceBackslash(char* str) {
-	char* found = NULL; 
-	// search for the first occurance of `\`
-	found = strchr(str, '\\'); 
-	while (found != NULL) { 
-		// replace as `\\`
-		memmove(found + 1, found, strlen(found) + 1); 
-		*found = '\\'; 
-		// find next
-		found = strchr(found + 2, '\\\\'); 
-	} 
 }
 
 void extractParam(char* line, char* param) {
@@ -561,6 +550,26 @@ void extractString(char* source, char* result) {
 	result[length] = '\0'; // add ending param at EOL
 }
 
+void extractString2(char* source, char* result) {
+	char* start = strchr(source, '<'); // find the 1st <
+	if (start == NULL) {
+		strcpy(result, ""); // set as empty string if not found
+		return;
+	}
+
+	start++; // skip the first "
+
+	char* end = strchr(start, '>'); // find the 1st >
+	if (end == NULL) {
+		strcpy(result, ""); // set as empty string if not found
+		return;
+	}
+
+	int length = end - start; 
+	strncpy(result, start, length); 
+	result[length] = '\0'; // add ending param at EOL
+}
+
 void extractRootDirectory(char* filepath, char* rootDir) {
 	char* lastSeparator = strrchr(filepath, backspace); // find last occurance of backspace
 	if (lastSeparator == NULL) {
@@ -584,12 +593,15 @@ void writeTXT(const char* path) {
 	char model_name_od[100] = "";
 	char model_name_fd[100] = "";
 	char model_name_fr[100] = "";
+	char header_od[100] = "NA";
+	char header_fd[100] = "NA";
+	char header_fr[100] = "NA";
+	char header_all[100] = "";
 	char line_strip_header[100] = "NA";
 	char line_strip_headerNN[100] = "NA";
 	char dir_example[100] = "NA";
 
 	path = path_example;
-	// replaceBackslash(path);
 
 #if PRINT_DEBUG
 	printf("[%s][INFO] Load example: \"%s\"\n", __func__, path);
@@ -604,29 +616,23 @@ void writeTXT(const char* path) {
 		//														update path 
 		DIR* dir;
 		struct dirent* ent;
-		int count = 0;
 
 		// check weather dir is valid
 		if ((dir = opendir(path)) != NULL) {
 			/* print all the files and directories within directory */
 			while ((ent = readdir(dir)) != NULL) {
-				if (ent->d_type == DT_REG) {
-					count++;
+				if (ent->d_type == DT_REG && strstr(ent->d_name, ".ino") != NULL) {
 #if PRINT_DEBUG
 					printf("[%s] File:%s\n", __func__, ent->d_name);
 #endif
-					if (strstr(ent->d_name, ".ino") != NULL) {
-#ifdef _WIN32
-						strcat(path, "\\");
-#else
-						strcat(path, "/");
-#endif
+					//if (strstr(ent->d_name, ".ino") != NULL) {
+						strcat(path, backspace);
 						strcat(path, ent->d_name);
 						printf("[%s] path:%s\n", __func__, path);
-					}
-					else {
-						printf("cannot find file ends with .ino \n");
-					}
+					//}
+					//else {
+					//	printf("cannot find file ends with .ino \n");
+					//}
 				}
 			}
 		}
@@ -817,6 +823,7 @@ void writeTXT(const char* path) {
 						}
 					}
 				}
+				fclose(f_model);
 				printf("-------------------------------------\n");
 				printf("Model Name OD: %s\n", input2model(model_name_od));
 				printf("Model Name FD: %s\n", input2model(model_name_fd));
@@ -824,10 +831,9 @@ void writeTXT(const char* path) {
 				printf("-------------------------------------\n");
 				updateTXT(input2model(model_name_od));
 				updateTXT(input2model(model_name_fd));
-				updateTXT(input2model(model_name_fr));
+				updateTXT(input2model(model_name_fr));			
 			}
-		}
-		fclose(f_model);
+		}		
 	}
 	else {
 		printf("[%s][Error] 1 Failed to open the file.\n", __func__);
@@ -848,14 +854,25 @@ void writeTXT(const char* path) {
 	if (f_headerNN) {
 		char line[1024];
 		while (fgets(line, sizeof(line), f_headerNN)) {
-			/* check whether keywordNN in f_model content */
+			/* check whether keywordNN in file content */
 			if (strstr(line, key_amb_header) != NULL && strstr(line, "NN") != NULL) {
-				extractString(line, line_strip_headerNN);	// remove unnecessary part in the header
-#if PRINT_DEBUG
-				printf("Extracted string: %s\n", line_strip_headerNN);
-#endif
+				if (strstr(line, "Object") != NULL) {
+					extractString(line, header_fd);
+				}
+				if (strstr(line, "FaceDetection") != NULL) {
+					extractString(line, header_fd);
+				}				
+				if (strstr(line, "FaceRecognition") != NULL) {
+					extractString(line, header_fd);
+				}
 			}
 		}
+#if PRINT_DEBUG
+		printf("Extracted od string: %s\n", header_od);
+		printf("Extracted fd string: %s\n", header_fd);
+		printf("Extracted fr string: %s\n", header_fr);
+		printf("-------------------------------------\n");
+#endif
 		fclose(f_headerNN);
 	}
 	else {
@@ -863,7 +880,9 @@ void writeTXT(const char* path) {
 		perror(path);
 		return EXIT_FAILURE;
 	}
-	updateTXT(line_strip_headerNN);
+	updateTXT(header_od);
+	updateTXT(header_fd);
+	updateTXT(header_fr);
 
 	updateTXT("----------------------------------");
 	updateTXT("Current ino video status:");
@@ -872,18 +891,15 @@ void writeTXT(const char* path) {
 	if (f_VOE) {
 		char line[1024];
 		while (fgets(line, sizeof(line), f_VOE)) {
-			/* check whether keywordNN in f_model content */
+			/* check whether keywordVOE in file content */
 			if (strstr(line, key_amb_VOE) != NULL && strstr(line, "//") == NULL && strstr(line, key_amb_bypassVOE1) == NULL && strstr(line, key_amb_bypassVOE2) == NULL) {
-#if PRINT_DEBUG
-				printf("f_VOE Extracted string: %s\n", line);
-#endif
 				strcpy(voe_status,"ON");		
 			}	
 		}
 		fclose(f_VOE);					// update NA for video status
 	}
 	else {
-		printf("[%s][Error] Failed to open the f_model.\n", __func__);
+		printf("[%s][Error] Failed to open the file.\n", __func__);
 		perror(path);
 		return EXIT_FAILURE;
 	}		
@@ -896,21 +912,32 @@ void writeTXT(const char* path) {
 	if (f_header) {
 		char line[1024];
 		while (fgets(line, sizeof(line), f_header)) {
-			/* check whether keywordNN in f_model content */
+			/* check whether keyword_header in file content */
 			if (strstr(line, key_amb_header) != NULL) {
-				// remove unnecessary part in the header
-				//char line_strip[100];
-				extractString(line, line_strip_header);
-#if PRINT_DEBUG
-				printf("Extracted string: %s\n", line);
-#endif
-				updateTXT(line_strip_header);
+				extractString(line, line_strip_header);	// remove unnecessary part in the header
+				if (strlen(line_strip_header)==0){
+					extractString2(line, line_strip_header);
+				}
+				strcat(line_strip_header, ", ");
+				strcat(header_all, line_strip_header); // store headers into a string
 			}
 		}
 		fclose(f_header);
+
+		// update header_all to txt
+		char* header_item;
+		header_item = strtok(header_all, ", ");
+		while (header_item != NULL) {
+#ifdef PRINT_DEBUG
+			printf("%s\n",header_item);
+#endif
+			updateTXT(header_item);
+			header_item = strtok(NULL, ", ");
+		}
+
 	}
 	else {
-		printf("[%s][Error] Failed to open the f_model.\n", __func__);
+		printf("[%s][Error] Failed to open the file.\n", __func__);
 		perror(path);
 		return EXIT_FAILURE;
 	}
