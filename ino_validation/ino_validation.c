@@ -2,7 +2,7 @@
 LINUX: 
 gcc -c cJSON.c
 ar rcs libcjson.a cJSON.o
-gcc ino_validation.c -o ino_validation -L -ljson -static
+gcc ino_validation.c -o ino_validation -L. -ljson -static
 
 */
 #define _GNU_SOURCE
@@ -34,7 +34,7 @@ gcc ino_validation.c -o ino_validation -L -ljson -static
 #include "cJSON.h"
 #include <locale.h>
 
-#define PRINT_DEBUG 0
+#define PRINT_DEBUG 1
 #define MAX_PATH_LENGTH 1024
 
 /* Declear function headers */
@@ -77,8 +77,6 @@ const char* input2filename(const char* dest_path, const char* input);
 /* Conveert model input type to model header f_model*/
 const char* input2header(const char* input);
 
-void convertPath(char* path);
-
 /* Declear global vairables */
 const char* key_amb_NN					= "modelSelect";
 const char* key_amb_bypassNN1			= " .modelSelect";
@@ -103,11 +101,13 @@ char* path_arduino15_add				= "\\AppData\\Local\\Arduino15";
 char* path_ambpro2_add					= "\\packages\\realtek\\hardware\\AmebaPro2\\";
 char* path_model_add					= "\\variants\\common_nn_models";
 char* path_txtfile_add					= "\\misc\\";
+char* backspace							= "\\";
 #else
 char* path_arduino15_add				= "/.arduino15";
 char* path_ambpro2_add					= "/packages/realtek/hardware/AmebaPro2/";
 char* path_model_add					= "/variants/common_nn_models";
 char* path_txtfile_add					= "/misc/";
+char* backspace							= "/";
 #endif
 
 const char* path_build_options_json = NULL;
@@ -142,16 +142,6 @@ int main(int argc, char* argv[]) {
 	strcpy(path_root, getenv("HOME"));
 	strcpy(path_arduino15, getenv("HOME"));
 #endif
-	printf("%s\n",path_root);
-	printf("%s\n",path_arduino15);
-	
-	// Retrive user name 
-#ifdef linux
-	char login[256];
-	if (getlogin_r(login, sizeof(login)) == 0) {
-		printf("Login name: %s \n", login);
-	}
-#endif 
 
 	strcat(path_arduino15, path_arduino15_add);
 	strcpy(path_pro2, path_arduino15);
@@ -162,25 +152,12 @@ int main(int argc, char* argv[]) {
 	strcpy(path_txtfile, argv[2]);
 	strcat(path_txtfile, path_txtfile_add);
 
-	// convert path according to system
-	convertPath(path_build);
-	convertPath(path_tools);
-	convertPath(getenv("USERPROFILE"));
-	convertPath(getenv("HOMEDRIVE"));
-	convertPath(getenv("HOMEPATH"));
-	convertPath(path_root);
-	convertPath(path_arduino15);
-	convertPath(path_pro2);
-	convertPath(dirName(path_pro2));
-	convertPath(path_model);
-	convertPath(path_txtfile);
-
 	// Print the input parameters 
 	printf("Parameter 1      = %s\n", path_build);
 	printf("Parameter 2      = %s\n", path_tools);
-	printf("USERPROFILE      = %s\n", getenv("USERPROFILE"));
-	printf("HOMEDRIVE        = %s\n", getenv("HOMEDRIVE"));
-	printf("HOMEPATH         = %s\n", getenv("HOMEPATH"));
+	//printf("USERPROFILE      = %s\n", getenv("USERPROFILE"));
+	//printf("HOMEDRIVE        = %s\n", getenv("HOMEDRIVE"));
+	//printf("HOMEPATH         = %s\n", getenv("HOMEPATH"));
 	printf("path_root        = %s\n", path_root);
 	printf("path_arduino15   = %s\n", path_arduino15);
 	printf("path_pro2        = %s\n", path_pro2);
@@ -195,30 +172,9 @@ int main(int argc, char* argv[]) {
 	path_example = validateINO(path_build);
 	printf("[%s][INFO] path_example            = %s\n", __func__, path_example);
 
-	// SECTION FOR FUNCTION TEST =======================================================
 	writeTXT(path_example);
 
-	exit(1);
-	while (1);
-
-	// END OF SECTION FOR FUNCTION TEST =======================================================
 	return 0;
-}
-
-void convertPath(char* path) {
-    #ifdef _WIN32
-        const char* separator = "\\";
-		const char* replacement = "\\";
-    #else
-		const char* separator = "\\";
-		const char* replacement = "/";
-    #endif
-
-	const char* position = strstr(path, separator); // 查找路径中的斜杠
-    while (position != NULL) {
-        memcpy(position, replacement, strlen(replacement)); // 替换斜杠
-        position = strstr(position + strlen(replacement), separator); // 继续查找下一个斜杠
-    }
 }
 
 int isDirExists(const char* path) {
@@ -440,65 +396,72 @@ const char* pathTempJSON(const char* directory_path, const char* ext, const char
 	struct dirent* ent;
 
 #if PRINT_DEBUG
-	printf("[%s][INFO] Load json f_model \"%s\"\n", __func__, directory_path);
+	printf("[%s][INFO] Load json file in dir \"%s\"\n", __func__, directory_path);
 #endif
 	if ((dir = opendir(directory_path)) != NULL) {
 		/* print all the files and directories within directory */
 		while ((ent = readdir(dir)) != NULL) {
-			if (ent->d_type == DT_REG) {
+			if (ent->d_type == DT_REG && strstr(ent->d_name,ext_json)!=NULL && strstr(ent->d_name, key_json) != NULL) {
+#if PRINT_DEBUG
+				printf("[%s][INFO] File: %s\n", __func__, ent->d_name);
+#endif
+				strcat(directory_path, backspace);
+				strcat(directory_path, ent->d_name);
+				return directory_path;
+				/*
+				
 				size_t size_file = strlen(ent->d_name);
 				size_t size_json = strlen(ext);
 				const char* jsonfilename = strstr(ent->d_name, key);
-
+				
 				if (size_file >= size_json && strcmp(ent->d_name + size_file - size_json, ext) == 0) {
 					if (strlen(jsonfilename) != 0 && strlen(jsonfilename) == strlen(ent->d_name)) {
 #if PRINT_DEBUG
-						printf("[%s][INFO] File:%s\n", __func__, ent->d_name);
+						printf("[%s][INFO] File: %s\n", __func__, ent->d_name);
 #endif
-						strcat(directory_path, "\\");
+						strcat(directory_path, backspace);
 						strcat(directory_path, jsonfilename);
 
 					}
 					return directory_path;
-				}
+				}*/
 			}
 		}
 	}
 }
 
 cJSON* loadJSONFile(const char* directory_path) {
-	// Open f_model
-	FILE* f_model = fopen(directory_path, "r");
-	if (f_model == NULL) {
-		printf("[%s][Error] Failed to open the f_model.\n", __func__);
+	FILE* file = fopen(directory_path, "r");
+	if (file == NULL) {
+		printf("[%s][Error] Failed to open the file.\n", __func__);
 		return 1;
 	}
 
 	// Get the f_model size
-	fseek(f_model, 0, SEEK_END);
-	long file_size = ftell(f_model);
-	rewind(f_model);
+	fseek(file, 0, SEEK_END);
+	long file_size = ftell(file);
+	rewind(file);
 
 	// Allocate memory to hold the JSON data
 	char* json_data = (char*)malloc(file_size + 1);
 	if (json_data == NULL) {
 		printf("[%s][Error] Failed to allocate memory.\n", __func__);
-		fclose(f_model);
+		fclose(file);
 		return 1;
 	}
 
 	// Read the JSON data from the f_model
-	size_t read_size = fread(json_data, 1, file_size, f_model);
+	size_t read_size = fread(json_data, 1, file_size, file);
 	if (read_size != file_size) {
 		printf("[%s][Error] Failed to read the f_model.\n", __func__);
-		fclose(f_model);
+		fclose(file);
 		free(json_data);
 		return 1;
 	}
 	json_data[file_size] = '\0';  // Null-terminate the string
 
 	// Close the f_model
-	fclose(f_model);
+	fclose(file);
 
 	// Parse the JSON data
 	cJSON* data = cJSON_Parse(json_data);
@@ -599,7 +562,7 @@ void extractString(char* source, char* result) {
 }
 
 void extractRootDirectory(char* filepath, char* rootDir) {
-	char* lastSeparator = strrchr(filepath, '\\'); // find last occurance of backspace
+	char* lastSeparator = strrchr(filepath, backspace); // find last occurance of backspace
 	if (lastSeparator == NULL) {
 		strcpy(rootDir, ""); // set as empty string if not found
 		return;
@@ -638,7 +601,7 @@ void writeTXT(const char* path) {
 	// check path format: IDE1 file path, IDE2 dir path
 	if (strstr(path, ".ino") == NULL) {
 		printf("IDE2\n");
-		//																	update path 
+		//														update path 
 		DIR* dir;
 		struct dirent* ent;
 		int count = 0;
@@ -652,20 +615,24 @@ void writeTXT(const char* path) {
 #if PRINT_DEBUG
 					printf("[%s] File:%s\n", __func__, ent->d_name);
 #endif
-					if (strstr(ent->d_name, ".ino") == NULL) {
+					if (strstr(ent->d_name, ".ino") != NULL) {
 #ifdef _WIN32
-					strcat(path, "\\");
+						strcat(path, "\\");
 #else
-					strcat(path, "/");
+						strcat(path, "/");
 #endif
-					strcat(path, ent->d_name);
-					printf("[%s] path:%s\n", __func__, path);
+						strcat(path, ent->d_name);
+						printf("[%s] path:%s\n", __func__, path);
+					}
+					else {
+						printf("cannot find file ends with .ino \n");
 					}
 				}
 			}
 		}
 		else {
 			/* opendir() failed for some other reason. */
+			printf("[%s][Error] Faield to open temp dir in IDE2.0 :%s\n", __func__, path);
 			return 0;
 		}
 	}
@@ -935,7 +902,7 @@ void writeTXT(const char* path) {
 				//char line_strip[100];
 				extractString(line, line_strip_header);
 #if PRINT_DEBUG
-				printf("Extracted string: %s\n", line_strip);
+				printf("Extracted string: %s\n", line);
 #endif
 				updateTXT(line_strip_header);
 			}
