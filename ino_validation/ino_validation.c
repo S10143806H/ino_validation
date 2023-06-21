@@ -1,4 +1,11 @@
-﻿#define _GNU_SOURCE
+﻿/*
+LINUX: 
+gcc -c cJSON.c
+ar rcs libcjson.a cJSON.o
+gcc ino_validation.c -o ino_validation -L -ljson -static
+
+*/
+#define _GNU_SOURCE
 
 #ifdef _WIN32
 	#include <io.h>
@@ -91,10 +98,18 @@ const char* ext_json 					= ".json";
 const char* filename_txt				= "ino_validation.txt";
 
 /* Declear common file paths */
+#ifdef _WIN32
 char* path_arduino15_add				= "\\AppData\\Local\\Arduino15";
 char* path_ambpro2_add					= "\\packages\\realtek\\hardware\\AmebaPro2\\";
 char* path_model_add					= "\\variants\\common_nn_models";
 char* path_txtfile_add					= "\\misc\\";
+#else
+char* path_arduino15_add				= "/.arduino15";
+char* path_ambpro2_add					= "/packages/realtek/hardware/AmebaPro2/";
+char* path_model_add					= "/variants/common_nn_models";
+char* path_txtfile_add					= "/misc/";
+#endif
+
 const char* path_build_options_json = NULL;
 const char* path_example = NULL;
 const char* name_example = NULL;
@@ -106,6 +121,7 @@ char path_model[MAX_PATH_LENGTH];
 char path_txtfile[MAX_PATH_LENGTH];
 
 int main(int argc, char* argv[]) {
+
 	setlocale(LC_ALL, "en_US.UTF-8");
 	// Check if the number of input arguments is correct 
 	if (argc != 3) {
@@ -118,8 +134,25 @@ int main(int argc, char* argv[]) {
 	const char* path_build = argv[1];
 	const char* path_tools = argv[2];
 
+	// Retrive root path
+#ifdef _WIN32
 	strcpy(path_root, getenv("USERPROFILE"));
 	strcpy(path_arduino15, getenv("USERPROFILE"));
+#else
+	strcpy(path_root, getenv("HOME"));
+	strcpy(path_arduino15, getenv("HOME"));
+#endif
+	printf("%s\n",path_root);
+	printf("%s\n",path_arduino15);
+	
+	// Retrive user name 
+#ifdef linux
+	char login[256];
+	if (getlogin_r(login, sizeof(login)) == 0) {
+		printf("Login name: %s \n", login);
+	}
+#endif 
+
 	strcat(path_arduino15, path_arduino15_add);
 	strcpy(path_pro2, path_arduino15);
 	strcat(path_pro2, path_ambpro2_add);
@@ -174,14 +207,14 @@ int main(int argc, char* argv[]) {
 
 void convertPath(char* path) {
     #ifdef _WIN32
-        char* separator = "\\";
-        char* replacement = "\\";
+        const char* separator = "\\";
+		const char* replacement = "\\";
     #else
-        char* separator = "\\";
-        char* replacement = "/";
+		const char* separator = "\\";
+		const char* replacement = "/";
     #endif
 
-    char* position = strstr(path, separator); // 查找路径中的斜杠
+	const char* position = strstr(path, separator); // 查找路径中的斜杠
     while (position != NULL) {
         memcpy(position, replacement, strlen(replacement)); // 替换斜杠
         position = strstr(position + strlen(replacement), separator); // 继续查找下一个斜杠
