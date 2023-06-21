@@ -404,8 +404,10 @@ void updateTXT(const char* input) {
 		printf("[%s][Error] Failed to open the file.\n", __func__);
 #endif	
 		perror(path_txtfile);
-		// qqz return EXIT_FAILURE;
+		goto error_fopen; // qqz return EXIT_FAILURE;
 	}
+error_fopen:
+	error_handler("Failed to open file.\n");
 }
 
 const char* pathTempJSON(const char* directory_path, const char* ext, const char* key) {
@@ -654,7 +656,7 @@ void writeTXT(const char* path) {
 		else {
 			/* opendir() failed for some other reason. */
 			printf("[%s][Error] Faield to open temp dir in IDE2.0 :%s\n", __func__, path);
-			// qqz return EXIT_FAILURE;
+			goto error_fopen; // qqz return EXIT_FAILURE;
 		}
 	}
 
@@ -853,7 +855,7 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] 1 Failed to open the file.\n", __func__);
 		perror(path);
-		// qqz return EXIT_FAILURE;
+		goto error_fopen; // qqz return EXIT_FAILURE;
 	}		
 	// update NA for non-NN examples
 	if (strlen(model_name_od) == 0 && strlen(model_name_fd) == 0 && strlen(model_name_fr) == 0) {
@@ -893,7 +895,7 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] 2 Failed to open the file.\n", __func__);
 		perror(path);
-		// qqz return EXIT_FAILURE;
+		goto error_fopen; // qqz return EXIT_FAILURE;
 	}
 	updateTXT(header_od);
 	updateTXT(header_fd);
@@ -916,7 +918,7 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] Failed to open the file.\n", __func__);
 		perror(path);
-		// qqz return EXIT_FAILURE;
+		goto error_fopen; // qqz return EXIT_FAILURE;
 	}		
 	updateTXT(voe_status);
 	
@@ -954,14 +956,17 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] Failed to open the file.\n", __func__);
 		perror(path);
-		// qqz return EXIT_FAILURE;
+		goto error_fopen; // qqz return EXIT_FAILURE;
 	}
 	if (strcmp(line_strip_header,"NA") == NULL) {
 		updateTXT(line_strip_header);
 	}
 	updateTXT("--------------------------------------");
 
-	// qqz return 0;
+	goto error_fopen; // qqz return 0;
+
+error_fopen:
+	error_handler("Failed to open file.\n");
 
 error_combination:
 	error_handler("Model combination mismatch. Please check modelSelect() again.");
