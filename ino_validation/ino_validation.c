@@ -3,7 +3,16 @@ LINUX:
 gcc -c cJSON.c
 ar rcs libcjson.a cJSON.o
 gcc ino_validation.c -o ino_validation -L. -lcjson -static
+gcc ino_validation.c -o ino_validation -L. -L/Library/Developer/CommandLineTools/usr/lib/swift_static/macosx/ -lcjson -Bstatic
 
+TODO:
+1. error handler for void func
+2. SDK == 1 check
+3. 2 modelSelect() handler
+---------------------------------
+Jul
+1. customized file location check
+2. Audio NN
 */
 #define _GNU_SOURCE
 
@@ -100,12 +109,18 @@ char* path_ambpro2_add					= "\\packages\\realtek\\hardware\\AmebaPro2\\";
 char* path_model_add					= "\\variants\\common_nn_models";
 char* path_txtfile_add					= "\\misc\\";
 char* backspace							= "\\";
-#else
+#elif __linux__
 char* path_arduino15_add				= "/.arduino15";
 char* path_ambpro2_add					= "/packages/realtek/hardware/AmebaPro2/";
 char* path_model_add					= "/variants/common_nn_models";
 char* path_txtfile_add					= "/misc/";
 char* backspace							= "/";
+#else
+char* path_arduino15_add                = "/Library/Arduino15";
+char* path_ambpro2_add                  = "/packages/realtek/hardware/AmebaPro2/";
+char* path_model_add                    = "/variants/common_nn_models";
+char* path_txtfile_add                  = "/misc/";
+char* backspace                         = "/";
 #endif
 
 const char* path_build_options_json = NULL;
@@ -389,7 +404,7 @@ void updateTXT(const char* input) {
 		printf("[%s][Error] Failed to open the file.\n", __func__);
 #endif	
 		perror(path_txtfile);
-		return EXIT_FAILURE;
+		// qqz return EXIT_FAILURE;
 	}
 }
 
@@ -639,7 +654,7 @@ void writeTXT(const char* path) {
 		else {
 			/* opendir() failed for some other reason. */
 			printf("[%s][Error] Faield to open temp dir in IDE2.0 :%s\n", __func__, path);
-			return 0;
+			// qqz return EXIT_FAILURE;
 		}
 	}
 
@@ -838,7 +853,7 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] 1 Failed to open the file.\n", __func__);
 		perror(path);
-		return EXIT_FAILURE;
+		// qqz return EXIT_FAILURE;
 	}		
 	// update NA for non-NN examples
 	if (strlen(model_name_od) == 0 && strlen(model_name_fd) == 0 && strlen(model_name_fr) == 0) {
@@ -878,7 +893,7 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] 2 Failed to open the file.\n", __func__);
 		perror(path);
-		return EXIT_FAILURE;
+		// qqz return EXIT_FAILURE;
 	}
 	updateTXT(header_od);
 	updateTXT(header_fd);
@@ -901,7 +916,7 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] Failed to open the file.\n", __func__);
 		perror(path);
-		return EXIT_FAILURE;
+		// qqz return EXIT_FAILURE;
 	}		
 	updateTXT(voe_status);
 	
@@ -939,14 +954,14 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] Failed to open the file.\n", __func__);
 		perror(path);
-		return EXIT_FAILURE;
+		// qqz return EXIT_FAILURE;
 	}
 	if (strcmp(line_strip_header,"NA") == NULL) {
 		updateTXT(line_strip_header);
 	}
 	updateTXT("--------------------------------------");
 
-	return 0;
+	// qqz return 0;
 
 error_combination:
 	error_handler("Model combination mismatch. Please check modelSelect() again.");
