@@ -42,7 +42,7 @@ Jul
 #include "cJSON.h"
 #include <locale.h>
 
-#define PRINT_DEBUG 0
+#define PRINT_DEBUG 1
 #define MAX_PATH_LENGTH 1024
 
 /* Declear function headers */
@@ -424,12 +424,13 @@ const char* pathTempJSON(const char* directory_path, const char* ext, const char
 				strcat(directory_path, ent->d_name);
 				return directory_path;
 			}
+			/*
 			else {
 #if PRINT_DEBUG
 				printf("[%s][Error] Failed to locate dedicated json file in: %s\n", __func__, directory_path);
 				exit(1);
 #endif
-			}
+			}*/
 		}
 	}
 	else {
@@ -852,13 +853,19 @@ int writeTXT(const char* path) {
 				updateTXT(input2model(model_name_fd));
 				updateTXT(input2model(model_name_fr));			
 			}
-		}		
+		}
+		fclose(f_model);
 	}
 	else {
 		printf("[%s][Error] 1 Failed to open the file.\n", __func__);
 		perror(path);
 		return EXIT_FAILURE;
 	}		
+	
+	printf("2 Model Name OD: %s\n", input2model(model_name_od));
+	printf("2 Model Name FD: %s\n", input2model(model_name_fd));
+	printf("2 Model Name FR: %s\n", input2model(model_name_fr));
+
 	// update NA for non-NN examples
 	if (strlen(model_name_od) == 0 && strlen(model_name_fd) == 0 && strlen(model_name_fr) == 0) {
 		for (int i = 0; i < 3; i++) {
