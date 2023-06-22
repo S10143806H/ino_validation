@@ -7,7 +7,6 @@ gcc ino_validation.c -o ino_validation -L. -L/Library/Developer/CommandLineTools
 
 TODO:
 1. error handler for void func
-2. SDK == 1 check
 3. 2 modelSelect() handler
 ---------------------------------
 Jul
@@ -43,7 +42,7 @@ Jul
 #include "cJSON.h"
 #include <locale.h>
 
-#define PRINT_DEBUG 1
+#define PRINT_DEBUG 0
 #define MAX_PATH_LENGTH 1024
 
 /* Declear function headers */
@@ -55,7 +54,7 @@ int isDirExists(const char* path);
 /* Functions below are for txt f_model manipulation */
 int endsWith(const char* str, const char* suffix);
 /* Function checks whether the directory exisits */
-void writeTXT(const char* path_example);
+int writeTXT(const char* path_example);
 /* Returns example f_model path inside the temp JSON f_model */
 const char* pathTempJSON(const char* directory_path, const char* ext, const char* key);
 /* Load JSON f_model from the directory and parse into cJSON data format */
@@ -168,7 +167,7 @@ int main(int argc, char* argv[]) {
 
 	// Check if contains more than 1 SDK
 
-
+#if PRINT_DEBUG
 	// Print the input parameters 
 	printf("Parameter 1      = %s\n", path_build);
 	printf("Parameter 2      = %s\n", path_tools);
@@ -181,16 +180,17 @@ int main(int argc, char* argv[]) {
 	printf("ver_pro2         = %s\n", dirName(path_pro2));
 	printf("path_model       = %s\n", path_model);
 	printf("path_txtfile     = %s\n", path_txtfile);
+#endif
 
 	resetTXT(path_txtfile);
-	printf("[%s][INFO] resetTXT done\n", __func__);
 	path_build_options_json = pathTempJSON(path_build, ext_json, key_json);
-	printf("[%s][INFO] path_build_options_json = %s\n", __func__, path_build_options_json);
 	path_example = validateINO(path_build);
-	printf("[%s][INFO] path_example            = %s\n", __func__, path_example);
-
 	writeTXT(path_example);
-
+#if PRINT_DEBUG
+	printf("[%s][INFO] path_build_options_json = %s\n", __func__, path_build_options_json);
+	printf("[%s][INFO] path_example            = %s\n", __func__, path_example);
+#endif
+	
 	return 0;
 }
 
@@ -314,9 +314,6 @@ const char* input2filename(const char* dest_path, const char* input) {
 							char* start = strchr(line, '\"') + 1;
 							char* end = strrchr(line, '\"');
 							size_t length = end - start;
-							//value_file = malloc(length + 1);
-							//strncpy(value_file, start, length);
-							//value_file[length] = '\0';
 							break;
 						}
 					}
@@ -362,8 +359,7 @@ const char* dirName(const char* directory_path) {
 		}
 		// non singular SDK validation
 		if (sdk_counter > 1) {
-			printf("[%s][Error] Current dirctory contains more than 1 SDK!!! \n", __func__);
-			exit(1);
+			goto error_non_singular;
 		}
 		else {
 			return sdk_name;			
@@ -373,6 +369,9 @@ const char* dirName(const char* directory_path) {
 		printf("[%s][Error] Failed to open directory.\n", __func__);
 	}
 	closedir(directory);
+
+error_non_singular:
+	error_handler("AmebaPro2 directory only allow 1 SDK!!! Please check again.");
 }
 
 void resetTXT(const char* directory_path) {
@@ -404,7 +403,6 @@ void updateTXT(const char* input) {
 		printf("[%s][Error] Failed to open the file.\n", __func__);
 #endif	
 		perror(path_txtfile);
-		// qqz return EXIT_FAILURE;
 	}
 }
 
@@ -425,25 +423,20 @@ const char* pathTempJSON(const char* directory_path, const char* ext, const char
 				strcat(directory_path, backspace);
 				strcat(directory_path, ent->d_name);
 				return directory_path;
-				/*
-				
-				size_t size_file = strlen(ent->d_name);
-				size_t size_json = strlen(ext);
-				const char* jsonfilename = strstr(ent->d_name, key);
-				
-				if (size_file >= size_json && strcmp(ent->d_name + size_file - size_json, ext) == 0) {
-					if (strlen(jsonfilename) != 0 && strlen(jsonfilename) == strlen(ent->d_name)) {
+			}
+			else {
 #if PRINT_DEBUG
-						printf("[%s][INFO] File: %s\n", __func__, ent->d_name);
+				printf("[%s][Error] Failed to locate dedicated json file in: %s\n", __func__, directory_path);
+				exit(1);
 #endif
-						strcat(directory_path, backspace);
-						strcat(directory_path, jsonfilename);
-
-					}
-					return directory_path;
-				}*/
 			}
 		}
+	}
+	else {
+#if PRINT_DEBUG
+		printf("[%s][Error] Failed to open Dir at: %s\n", __func__, directory_path);
+		exit(1);
+#endif
 	}
 }
 
@@ -523,7 +516,7 @@ const char* validateINO(const char* directory_path) {
 		//printf("[%s][INFO] name_example = %s\n", __func__, name_example);	
 	}
 	*/
-#ifdef PRINT_DEBUG
+#if PRINT_DEBUG
 	printf("[%s][INFO] Current example path: %s \n", __func__, path_example->valuestring);
 #endif	
 
@@ -596,7 +589,7 @@ void extractRootDirectory(char* filepath, char* rootDir) {
 	rootDir[length] = '\0'; // add ending param at EOL
 }
 
-void writeTXT(const char* path) {
+int writeTXT(const char* path) {
 	DIR* dir;
 	struct dirent* ent;
 	const char buf[MAX_PATH_LENGTH] = "";
@@ -621,7 +614,6 @@ void writeTXT(const char* path) {
 #if PRINT_DEBUG
 	printf("[%s][INFO] Load example: \"%s\"\n", __func__, path);
 #endif
-
 	updateTXT("----------------------------------");
 	updateTXT("Current ino contains model(s):");
 
@@ -653,11 +645,11 @@ void writeTXT(const char* path) {
 		}
 		else {
 			/* opendir() failed for some other reason. */
+#if PRINT_DEBUG
 			printf("[%s][Error] Faield to open temp dir in IDE2.0 :%s\n", __func__, path);
-			// qqz return EXIT_FAILURE;
+#endif
 		}
 	}
-
 
 	FILE* f_model = fopen(path, "r");  //FILE* f_model = fopen(path, "r, ccs=UTF-8");
 	char param[100];
@@ -667,15 +659,21 @@ void writeTXT(const char* path) {
 			/* check whether keywordNN in f_model content */ 
 			if (strstr(line, key_amb_NN) != NULL && strstr(line, "//") == NULL && strstr(line, key_amb_bypassNN1) == NULL && strstr(line, key_amb_bypassNN2) == NULL){
 				extractParam(line, param);
+#if PRINT_DEBUG
 				printf("Extracted parameter: %s\n", param);
+#endif
 				char* token;
 				token = strtok(param, ", ");
 				if (token != NULL) { 
 					strcpy(model_type, token);
+#if PRINT_DEBUG
 					printf("Model Type: %s\n", model_type);
+#endif
 					/* ------------------ object detection ------------------*/
 					token = strtok(NULL, ", ");
+#if PRINT_DEBUG
 					printf("1 token: %s\n", token);
+#endif
 					if (token != NULL) {
 						// check model combination rules
 						if (strcmp(model_type, "OBJECT_DETECTION") == 0) {
@@ -723,7 +721,9 @@ void writeTXT(const char* path) {
 						strcpy(model_name_od, token);
 						/* ----------------- face detection -----------------*/
 						token = strtok(NULL, ", ");	
+#if PRINT_DEBUG
 						printf("2 token: %s\n", token);
+#endif
 						if (token != NULL) {
 							// check model combination rules
 							if (strcmp(model_type, "FACE_DETECTION") == 0) {
@@ -768,7 +768,9 @@ void writeTXT(const char* path) {
 							strcpy(model_name_fd, token);
 							/*-------------- face recognition --------------*/
 							token = strtok(NULL, ", "); 
+#if PRINT_DEBUG
 							printf("3 token: %s\n", token);
+#endif
 							// check model combination rules
 							if (strcmp(model_type, "FACE_RECOGNITION") == 0) {
 								if (strcmp(model_name_fd, "NA_MODEL") == 0 || strstr(model_name_fd, "SCRFD") == NULL || strcmp(token, "NA_MODEL") == 0 || strstr(token, "MOBILEFACENET") == NULL) {
@@ -839,11 +841,13 @@ void writeTXT(const char* path) {
 					}
 				}
 				fclose(f_model);
+#if PRINT_DEBUG
 				printf("-------------------------------------\n");
 				printf("Model Name OD: %s\n", input2model(model_name_od));
 				printf("Model Name FD: %s\n", input2model(model_name_fd));
 				printf("Model Name FR: %s\n", input2model(model_name_fr));
 				printf("-------------------------------------\n");
+#endif
 				updateTXT(input2model(model_name_od));
 				updateTXT(input2model(model_name_fd));
 				updateTXT(input2model(model_name_fr));			
@@ -853,7 +857,7 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] 1 Failed to open the file.\n", __func__);
 		perror(path);
-		// qqz return EXIT_FAILURE;
+		return EXIT_FAILURE;
 	}		
 	// update NA for non-NN examples
 	if (strlen(model_name_od) == 0 && strlen(model_name_fd) == 0 && strlen(model_name_fr) == 0) {
@@ -893,7 +897,7 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] 2 Failed to open the file.\n", __func__);
 		perror(path);
-		// qqz return EXIT_FAILURE;
+		return EXIT_FAILURE;
 	}
 	updateTXT(header_od);
 	updateTXT(header_fd);
@@ -916,7 +920,7 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] Failed to open the file.\n", __func__);
 		perror(path);
-		// qqz return EXIT_FAILURE;
+		return EXIT_FAILURE;
 	}		
 	updateTXT(voe_status);
 	
@@ -943,7 +947,7 @@ void writeTXT(const char* path) {
 		char* header_item;
 		header_item = strtok(header_all, ", ");
 		while (header_item != NULL) {
-#ifdef PRINT_DEBUG
+#if PRINT_DEBUG
 			printf("%s\n",header_item);
 #endif
 			updateTXT(header_item);
@@ -954,14 +958,14 @@ void writeTXT(const char* path) {
 	else {
 		printf("[%s][Error] Failed to open the file.\n", __func__);
 		perror(path);
-		// qqz return EXIT_FAILURE;
+		return EXIT_FAILURE;
 	}
 	if (strcmp(line_strip_header,"NA") == NULL) {
 		updateTXT(line_strip_header);
 	}
 	updateTXT("--------------------------------------");
 
-	// qqz return 0;
+	return 0;
 
 error_combination:
 	error_handler("Model combination mismatch. Please check modelSelect() again.");
