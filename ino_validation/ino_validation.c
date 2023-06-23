@@ -6,12 +6,12 @@ gcc ino_validation.c -o ino_validation -L. -lcjson -static
 gcc ino_validation.c -o ino_validation -L. -L/Library/Developer/CommandLineTools/usr/lib/swift_static/macosx/ -lcjson -Bstatic
 
 TODO:
-1. error handler for void func
-3. 2 modelSelect() handler
+* 2 modelSelect() handler
+* ZH computer runs this example
 ---------------------------------
 Jul
-1. customized file location check
-2. Audio NN
+* customized file location check
+* Audio NN
 */
 #define _GNU_SOURCE
 
@@ -42,7 +42,7 @@ Jul
 #include "cJSON.h"
 #include <locale.h>
 
-#define PRINT_DEBUG 1
+#define PRINT_DEBUG		0
 #define MAX_PATH_LENGTH 1024
 
 /* Declear function headers */
@@ -77,7 +77,7 @@ void error_handler(const char* message);
 const char* input2model(const char* input);
 /* Find the dir name of input source file path*/
 void extractRootDirectory(char* source, char* result);
-
+/* Collect all header files to be updte to txt file */
 void convertToHeaderFiles(const char* input);
 // -------------------------------------------------------------
 /* Conveert model input type to model filename*/
@@ -430,13 +430,6 @@ const char* pathTempJSON(const char* directory_path, const char* ext, const char
 				strcat(directory_path, ent->d_name);
 				return directory_path;
 			}
-			/*
-			else {
-#if PRINT_DEBUG
-				printf("[%s][Error] Failed to locate dedicated json file in: %s\n", __func__, directory_path);
-				exit(1);
-#endif
-			}*/
 		}
 	}
 	else {
@@ -483,10 +476,6 @@ cJSON* loadJSONFile(const char* directory_path) {
 	// Parse the JSON data
 	cJSON* data = cJSON_Parse(json_data);
 
-	// Clean up cJSON object and allocated memory
-	//cJSON_Delete(data);
-	//free(json_data);
-
 	return data;
 }
 
@@ -506,23 +495,8 @@ const char* validateINO(const char* directory_path) {
 	struct dirent* ent;
 
 	// Open the JSON file and retrive the data
-	cJSON* data = loadJSONFile(path_build_options_json);
-	// Arduino IDE1.0 
+	cJSON* data = loadJSONFile(path_build_options_json); 
 	cJSON* path_example = cJSON_GetObjectItem(data, "sketchLocation");
-
-	/*
-	// Arduino IDE2.0	
-	if (strstr(path_example, key_amb) == NULL) {
-		name_example = strrchr(path_example, '\\');
-		//removeChar(name_example, '\\');
-		//if (strstr(path_example, key_ino) == NULL && strstr(name_example, key_ino) == NULL) {
-			// rename json extracted example filename
-			//strcat(name_example, key_ino);
-			// find filepath in includes.cache
-		//}
-		//printf("[%s][INFO] name_example = %s\n", __func__, name_example);	
-	}
-	*/
 #if PRINT_DEBUG
 	printf("[%s][INFO] Current example path: %s \n", __func__, path_example->valuestring);
 #endif	
@@ -596,6 +570,20 @@ void extractRootDirectory(char* filepath, char* rootDir) {
 	rootDir[length] = '\0'; // add ending param at EOL
 }
 
+void convertToHeaderFiles(const char* input) {
+	const char* delimiter = ".h";
+	char* inputCopy = _strdup(input);
+	char* token = strtok(inputCopy, delimiter);
+	while (token != NULL) {
+#if PRINT_DEBUG
+		printf("[%s][Info]%s.h\n", __func__, token);
+#endif
+		updateTXT(token);
+		token = strtok(NULL, delimiter);
+	}
+	free(inputCopy);
+}
+
 int writeTXT(const char* path) {
 	DIR* dir;
 	struct dirent* ent;
@@ -624,29 +612,18 @@ int writeTXT(const char* path) {
 	updateTXT("----------------------------------");
 	updateTXT("Current ino contains model(s):");
 
-	// check path format: IDE1 file path, IDE2 dir path
-	if (strstr(path, ".ino") == NULL) {
-		printf("IDE2\n");
-		//														update path 
+	if (strstr(path, ".ino") == NULL) {			// check path format: IDE1 file path, IDE2 dir path
 		DIR* dir;
 		struct dirent* ent;
-
-		// check weather dir is valid
-		if ((dir = opendir(path)) != NULL) {
+		if ((dir = opendir(path)) != NULL) {	// check weather dir is valid
 			/* print all the files and directories within directory */
 			while ((ent = readdir(dir)) != NULL) {
 				if (ent->d_type == DT_REG && strstr(ent->d_name, ".ino") != NULL) {
 #if PRINT_DEBUG
 					printf("[%s] File:%s\n", __func__, ent->d_name);
 #endif
-					//if (strstr(ent->d_name, ".ino") != NULL) {
-						strcat(path, backspace);
-						strcat(path, ent->d_name);
-						printf("[%s] path:%s\n", __func__, path);
-					//}
-					//else {
-					//	printf("cannot find file ends with .ino \n");
-					//}
+					strcat(path, backspace);
+					strcat(path, ent->d_name);
 				}
 			}
 		}
@@ -658,7 +635,7 @@ int writeTXT(const char* path) {
 		}
 	}
 
-	FILE* f_model = fopen(path, "r");  //FILE* f_model = fopen(path, "r, ccs=UTF-8");
+	FILE* f_model = fopen(path, "r");
 	char param[100];
 	if(f_model) {
 		char line[1024];
@@ -951,41 +928,17 @@ int writeTXT(const char* path) {
 					extractString2(line, line_strip_header);
 				}
 #if PRINT_DEBUG
-                //printf("%s\n",line_strip_header);
+                printf("%s\n",line_strip_header);
 #endif
-                //strcpy(header_all, "");
-                //strcat(line_strip_header, ", ");
                 strcat(header_all, line_strip_header); // store headers into a string
-                printf("%s\n",header_all);
 			}
 		}
 		fclose(f_header);
 
 		// update header_all to txt
         convertToHeaderFiles(header_all);
-        printf("%s\n",header_all);
     }
-       /*
-		char* header_item;
-        header_item = strtok(header_all, ".h");
-		while (header_item != NULL) {
-#if PRINT_DEBUG
-			printf("%s\n",header_item);
-#endif
-			updateTXT(header_item);
-			header_item = strtok(NULL, ", ");
-		}
-	
-	else {
-		printf("[%s][Error] Failed to open the file.\n", __func__);
-		perror(path);
-		return EXIT_FAILURE;
-	}
-	if (strcmp(line_strip_header,"NA") == NULL) {
-		updateTXT(line_strip_header);
-	}
-	updateTXT("--------------------------------------");
-    */
+      
     return 0;
 
 error_combination:
@@ -996,16 +949,4 @@ error_customized_missing:
 
 error_customized_mismatch:
 	error_handler("Customized model mismatch. Please check your sketch folder again.");
-}
-
-void convertToHeaderFiles(const char* input) {
-        const char* delimiter = ".h";
-        char* inputCopy = strdup(input);
-        char* token = strtok(inputCopy, delimiter);
-        while (token != NULL) {
-            printf("[%s][Info]%s.h\n", __func__, token);
-            updateTXT(token);
-            token = strtok(NULL, delimiter);
-        }
-        free(inputCopy);
 }
