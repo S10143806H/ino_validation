@@ -77,6 +77,8 @@ void error_handler(const char* message);
 const char* input2model(const char* input);
 /* Find the dir name of input source file path*/
 void extractRootDirectory(char* source, char* result);
+
+void convertToHeaderFiles(const char* input);
 // -------------------------------------------------------------
 /* Conveert model input type to model filename*/
 const char* input2filename(const char* dest_path, const char* input);
@@ -349,8 +351,12 @@ const char* dirName(const char* directory_path) {
 	// check dir validation
 	if (directory) {
 		while ((entry = readdir(directory)) != NULL) {
+#ifdef __APPLE__
+            if(strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0 || strcmp(entry->d_name, ".DS_Store") == 0) {
+#else
 			if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-				continue;
+#endif
+                continue;
 			}
 			else {
 				sdk_counter++;	
@@ -882,13 +888,13 @@ int writeTXT(const char* path) {
 			/* check whether keywordNN in file content */
 			if (strstr(line, key_amb_header) != NULL && strstr(line, "NN") != NULL) {
 				if (strstr(line, "Object") != NULL) {
-					extractString(line, header_fd);
+					extractString(line, header_od);
 				}
 				if (strstr(line, "FaceDetection") != NULL) {
 					extractString(line, header_fd);
 				}				
 				if (strstr(line, "FaceRecognition") != NULL) {
-					extractString(line, header_fd);
+					extractString(line, header_fr);
 				}
 			}
 		}
@@ -929,13 +935,14 @@ int writeTXT(const char* path) {
 		return EXIT_FAILURE;
 	}		
 	updateTXT(voe_status);
-	
+    
 	updateTXT("-------------------------------------");
 	updateTXT("Current ino contains header file(s): ");
 
 	FILE* f_header = fopen(path, "r");  //FILE* f_model = fopen(path, "r, ccs=UTF-8");
 	if (f_header) {
 		char line[1024];
+        strcpy(header_all, "");
 		while (fgets(line, sizeof(line), f_header)) {
 			/* check whether keyword_header in file content */
 			if (strstr(line, key_amb_header) != NULL) {
@@ -943,15 +950,24 @@ int writeTXT(const char* path) {
 				if (strlen(line_strip_header)==0){
 					extractString2(line, line_strip_header);
 				}
-				strcat(line_strip_header, ", ");
-				strcat(header_all, line_strip_header); // store headers into a string
+#if PRINT_DEBUG
+                //printf("%s\n",line_strip_header);
+#endif
+                //strcpy(header_all, "");
+                //strcat(line_strip_header, ", ");
+                strcat(header_all, line_strip_header); // store headers into a string
+                printf("%s\n",header_all);
 			}
 		}
 		fclose(f_header);
 
 		// update header_all to txt
+        convertToHeaderFiles(header_all);
+        printf("%s\n",header_all);
+    }
+       /*
 		char* header_item;
-		header_item = strtok(header_all, ", ");
+        header_item = strtok(header_all, ".h");
 		while (header_item != NULL) {
 #if PRINT_DEBUG
 			printf("%s\n",header_item);
@@ -959,8 +975,7 @@ int writeTXT(const char* path) {
 			updateTXT(header_item);
 			header_item = strtok(NULL, ", ");
 		}
-
-	}
+	
 	else {
 		printf("[%s][Error] Failed to open the file.\n", __func__);
 		perror(path);
@@ -970,8 +985,8 @@ int writeTXT(const char* path) {
 		updateTXT(line_strip_header);
 	}
 	updateTXT("--------------------------------------");
-
-	return 0;
+    */
+    return 0;
 
 error_combination:
 	error_handler("Model combination mismatch. Please check modelSelect() again.");
@@ -981,4 +996,16 @@ error_customized_missing:
 
 error_customized_mismatch:
 	error_handler("Customized model mismatch. Please check your sketch folder again.");
+}
+
+void convertToHeaderFiles(const char* input) {
+        const char* delimiter = ".h";
+        char* inputCopy = strdup(input);
+        char* token = strtok(inputCopy, delimiter);
+        while (token != NULL) {
+            printf("[%s][Info]%s.h\n", __func__, token);
+            updateTXT(token);
+            token = strtok(NULL, delimiter);
+        }
+        free(inputCopy);
 }
