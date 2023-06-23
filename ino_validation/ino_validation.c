@@ -841,17 +841,6 @@ int writeTXT(const char* path) {
 						}
 					}
 				}
-				fclose(f_model);
-#if PRINT_DEBUG
-				printf("-------------------------------------\n");
-				printf("Model Name OD: %s\n", input2model(model_name_od));
-				printf("Model Name FD: %s\n", input2model(model_name_fd));
-				printf("Model Name FR: %s\n", input2model(model_name_fr));
-				printf("-------------------------------------\n");
-#endif
-				updateTXT(input2model(model_name_od));
-				updateTXT(input2model(model_name_fd));
-				updateTXT(input2model(model_name_fr));			
 			}
 		}
 		fclose(f_model);
@@ -862,15 +851,25 @@ int writeTXT(const char* path) {
 		return EXIT_FAILURE;
 	}		
 	
-	printf("2 Model Name OD: %s\n", input2model(model_name_od));
-	printf("2 Model Name FD: %s\n", input2model(model_name_fd));
-	printf("2 Model Name FR: %s\n", input2model(model_name_fr));
+#if PRINT_DEBUG
+	printf("-------------------------------------\n");
+	printf("Model Name OD: %s\n", input2model(model_name_od));
+	printf("Model Name FD: %s\n", input2model(model_name_fd));
+	printf("Model Name FR: %s\n", input2model(model_name_fr));
+	printf("-------------------------------------\n");
+#endif
+
 
 	// update NA for non-NN examples
 	if (strlen(model_name_od) == 0 && strlen(model_name_fd) == 0 && strlen(model_name_fr) == 0) {
 		for (int i = 0; i < 3; i++) {
 				updateTXT("NA");
 			}
+	}
+	else {
+		updateTXT(input2model(model_name_od));
+		updateTXT(input2model(model_name_fd));
+		updateTXT(input2model(model_name_fr));		
 	}
 		
 	updateTXT("-----------------------------------");
