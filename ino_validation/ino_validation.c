@@ -57,7 +57,7 @@ int endsWith(const char* str, const char* suffix);
 int writeTXT(const char* path_example);
 /* Returns example f_model path inside the temp JSON f_model */
 const char* pathTempJSON(const char* directory_path, const char* ext, const char* key);
-/* Load JSON f_model from the directory and parse into cJSON data format */
+/* Load JSON file from the directory and parse into cJSON data format */
 cJSON* loadJSONFile(const char* directory_path);
 /* Remove char c from string str */
 void removeChar(char* str, char c);
@@ -65,7 +65,7 @@ void removeChar(char* str, char c);
 const char* validateINO(const char* directory_path);
 /* Clear all content in the ino_validation.txt file */
 void resetTXT(const char* directory_path);
-/* Update content in the input to TXT f_model */
+/* Update content in the input to TXT file */
 void updateTXT(const char* input);
 /* Similar function as REGEX*/
 void extractParam(char* line, char* param);
