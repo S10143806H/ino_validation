@@ -32,4 +32,4 @@ libcjson.a: cJSON.o
 
 # Clean rule
 clean:
-	rm -f cJSON.o libcjson.a ino_validation
+	rm -f cJSON.o libcjson.a $(OUTPUT)
