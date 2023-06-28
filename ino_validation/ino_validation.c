@@ -30,6 +30,7 @@ Jul
 	#define _open open
 	#define _lseeki64 lseek64
 	#define _lseek lseek
+	#define _strdup strdup
 	#define stricmp strcasecmp
 #endif
 
