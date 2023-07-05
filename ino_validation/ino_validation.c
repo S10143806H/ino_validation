@@ -605,7 +605,7 @@ int writeTXT(const char* path) {
 	char header_od[100] = "NA";
 	char header_fd[100] = "NA";
 	char header_fr[100] = "NA";
-	char header_all[100] = "";
+	char header_all[MAX_PATH_LENGTH] = "";
 	char line_strip_header[100] = "NA";
 	char line_strip_headerNN[100] = "NA";
 	char dir_example[100] = "NA";
