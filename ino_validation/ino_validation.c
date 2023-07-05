@@ -360,7 +360,7 @@ const char* dirName(const char* directory_path) {
                 continue;
 			}
 			else {
-				sdk_counter++;	
+				sdk_counter++;
 				sdk_name = entry->d_name;
 			}
 		}
@@ -369,7 +369,7 @@ const char* dirName(const char* directory_path) {
 			goto error_non_singular;
 		}
 		else {
-			return sdk_name;			
+			return sdk_name;
 		}
 	}
 	else {
@@ -573,16 +573,21 @@ void extractRootDirectory(char* filepath, char* rootDir) {
 
 void convertToHeaderFiles(const char* input) {
 	const char* delimiter = ".h";
-	char* inputCopy = _strdup(input);
-	char* token = strtok(inputCopy, delimiter);
-	while (token != NULL) {
+
+	if (input != ""){
+		char* inputCopy = input;
+		char* token = strtok(inputCopy, delimiter);
 #if PRINT_DEBUG
-		printf("[%s][Info]%s.h\n", __func__, token);
+		printf("[%s][Info] token: %s\n", __func__, token);
 #endif
-		updateTXT(token);
-		token = strtok(NULL, delimiter);
-	}
-	free(inputCopy);
+		while (token != NULL) {
+#if PRINT_DEBUG
+			printf("[%s][Info]%s.h\n", __func__, token);
+#endif
+			updateTXT(token);
+			token = strtok(NULL, delimiter);
+		}
+	}	
 }
 
 int writeTXT(const char* path) {
